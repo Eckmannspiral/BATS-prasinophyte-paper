@@ -1,0 +1,809 @@
+---
+title: "odv_asv"
+author: "charlotte"
+date: "6/18/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(reshape2)
+library(MBA)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+#major class II ASVs
+
+odvpalette <- c("#273989", "#83E1F7", "#A6EEFF", "#B8F0FD", "#E3F9BD", "#f1ffd8", "#F8FFD8", "#FBE5A2", "#ffe184", "#F5CF5C", "#F5C328", "#ff942f", "#F58418", "#f45b16")
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(rel_abund = rel_abund * 1000) %>%
+  select(decy,Depth,rel_abund) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(rel_abund),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 2, n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'Depth'), value.name = 'rel_abund') %>%
+  filter(Depth < 0) %>%
+  mutate(rel_abund = round(rel_abund, 1),
+         rel_abund = ifelse(rel_abund < 0, 0, rel_abund),
+         rel_abund = replace_na(rel_abund,0))
+
+mba_results %>%
+  filter(Depth > -300, #filter to show only top 300 (see above)
+         Depth < -1) %>%
+  ggplot(aes(x = decy, y = Depth)) +
+  geom_raster(aes(fill = rel_abund)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+                        colours = odvpalette, limits=c(0,4000)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    xlim(2016.5,2020) +
+    geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               color = "black","size" = 0.6,
+               alpha = 0.4, shape = 19) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+asv6 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv6.tsv")
+
+asv6 <- asv6 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "ASV 6"
+
+asv6_plot <- plot_odv(asv6)
+```
+
+
+```{r cars}
+asv61 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv61.tsv")
+
+asv61 <- asv61 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "ASV 61"
+
+asv61_plot <- plot_odv(asv61)
+
+
+asv81 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv81.tsv")
+
+asv81 <- asv81 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "ASV 81"
+
+asv81_plot <- plot_odv(asv81)
+
+
+asv177 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv177.tsv")
+
+asv177 <- asv177 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "ASV 177"
+
+asv177_plot <- plot_odv(asv177)
+
+
+asv77 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv77.tsv")
+
+asv77 <- asv77 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "ASV 77"
+
+asv77_plot <- plot_odv(asv77)
+
+
+asv273 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv273.tsv")
+
+asv273 <- asv273 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+
+name <- "ASV 273"
+
+asv273_plot <- plot_odv(asv273)
+```
+
+
+```{r cars}
+#supp plots
+
+odvpalette <- c("#273989", "#A6EEFF", "#B8F0FD", "#E3F9BD", "#f1ffd8", "#F8FFD8", "#FBE5A2", "#ffe184", "#F5CF5C", "#F5C328", "#ff942f", "#F58418", "#f45b16")
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(rel_abund = rel_abund * 1000) %>%
+  select(decy,Depth,rel_abund) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(rel_abund),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 2, n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'Depth'), value.name = 'rel_abund') %>%
+  filter(Depth < 0) %>%
+  mutate(rel_abund = round(rel_abund, 1),
+         rel_abund = ifelse(rel_abund < 0, 0, rel_abund),
+         rel_abund = replace_na(rel_abund,0))
+
+mba_results %>%
+  filter(Depth > -300, #filter to show only top 300 (see above)
+         Depth < -1) %>%
+  ggplot(aes(x = decy, y = Depth)) +
+  geom_raster(aes(fill = rel_abund)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+                        colours = odvpalette, limits = c(0, 320)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               color = "black","size" = 0.6,
+               alpha = 0.4, shape = 19) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+asv1156 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv1156.tsv")
+
+asv1156 <- asv1156 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv1156"
+
+asv1156_plot <- plot_odv(asv1156)
+```
+
+
+```{r cars}
+####Pras I######
+asv2883 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv2883.tsv")
+
+asv2883 <- asv2883 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv2883"
+
+asv2883_plot <- plot_odv(asv2883)
+
+asv3768 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv3768.tsv")
+
+asv3768 <- asv3768 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv3768"
+
+asv3768_plot <- plot_odv(asv3768)
+
+asv5929 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv5929.tsv")
+
+asv5929 <- asv5929 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv5929"
+
+asv5929_plot <- plot_odv(asv5929)
+
+asv10835 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv10835.tsv")
+
+asv10835 <- asv10835 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv10835"
+
+asv10835_plot <- plot_odv(asv10835)
+
+asv13406 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv13406.tsv")
+
+asv13534 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv13534.tsv")
+
+asv20223 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv20223.tsv")
+
+asv28442 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv28442.tsv")
+
+asv29225 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv29225.tsv")
+
+asv40454 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv40454.tsv")
+
+asv46479 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv46479.tsv")
+
+asv49019 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv49019.tsv")
+
+asv54940 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv54940.tsv")
+
+asv54953 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv54953.tsv")
+
+asv55021 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv55021.tsv")
+
+asv60686 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv60686.tsv")
+
+prasi_list <- list(asv2883, asv3768, asv5929, asv10835, asv13406, asv13534, asv20223, asv28442, asv29225, asv40454, asv46479, asv49019, asv54940, asv54953, asv55021, asv60686)
+
+prasi_list <- prasi_list %>% reduce(full_join, by='Sample')
+
+#rename columns to allow to use ODV
+
+prasi_list <- rename(prasi_list, total_read_sample = total_read_sample.x)
+prasi_list <- rename(prasi_list, Depth = Depth.x)
+prasi_list <- rename(prasi_list, decy = decy.x)
+prasi_list <- rename(prasi_list, copies_seq2883 = copies.x)
+prasi_list <- rename(prasi_list, copies_seq3768 = copies.y)
+prasi_list <- rename(prasi_list, copies_seq5929 = copies.x.x)
+prasi_list <- rename(prasi_list, copies_seq10835 = copies.y.y)
+prasi_list <- rename(prasi_list, copies_seq13406 = copies.x.x.x)
+prasi_list <- rename(prasi_list, copies_seq13534 = copies.y.y.y)
+prasi_list <- rename(prasi_list, copies_seq20223 = copies.x.x.x.x)
+prasi_list <- rename(prasi_list, copies_seq28442 = copies.y.y.y.y)
+prasi_list <- rename(prasi_list, copies_seq29225 = copies.x.x.x.x.x)
+prasi_list <- rename(prasi_list, copies_seq40454 = copies.y.y.y.y.y)
+prasi_list <- rename(prasi_list, copies_seq46479 = copies.x.x.x.x.x.x)
+prasi_list <- rename(prasi_list, copies_seq49019 = copies.y.y.y.y.y.y)
+prasi_list <- rename(prasi_list, copies_seq54940 = copies.x.x.x.x.x.x.x)
+prasi_list <- rename(prasi_list, copies_seq54953 = copies.y.y.y.y.y.y.y)
+prasi_list <- rename(prasi_list, copies_seq55021 = copies.x.x.x.x.x.x.x.x)
+prasi_list <- rename(prasi_list, copies_seq60686 = copies.y.y.y.y.y.y.y.y)
+
+prasi_list$all_i_sum <- rowSums(prasi_list[ , c("copies_seq2883", "copies_seq3768", "copies_seq5929", "copies_seq10835", "copies_seq13406", "copies_seq13534", "copies_seq20223", "copies_seq28442", "copies_seq29225", "copies_seq40454", "copies_seq46479", "copies_seq49019", "copies_seq54940", "copies_seq54953", "copies_seq55021", "copies_seq60686")])
+
+prasi_list <- prasi_list %>% mutate(rel_abund = all_i_sum / total_read_sample * 100)
+
+prasi_plot <- plot_odv(prasi_list)
+```
+
+
+```{r cars}
+####Pderma######
+asv3870 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv3870.tsv")
+
+asv3870 <- asv3870 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv3870"
+
+asv3870_plot <- plot_odv(asv3870)
+
+ggsave(filename = "asv3870_plot.pdf", plot= asv3870_plot, device = "pdf", width = 10, height = 10)
+
+#asv3870_plot <- plot_odv(asv3870)
+
+
+asv8472 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv8472.tsv")
+
+asv8472 <- asv8472 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv8472"
+
+asv8472_plot <- plot_odv(asv8472)
+
+
+asv52758 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv52758.tsv")
+
+asv52758 <- asv52758 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv52758"
+
+asv52758_plot <- plot_odv(asv52758)
+
+ggsave(filename = "asv52758_plot.pdf", plot= asv52758_plot, device = "pdf", width = 10, height = 10)
+
+
+asv54252 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv54252.tsv")
+
+name <- "asv54252"
+
+#asv54252_plot <- plot_odv(asv54252)
+
+
+asv57827 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv57827.tsv")
+
+name <- "asv57827"
+
+#asv57827_plot <- plot_odv(asv57827)
+
+pderma_list <- list(asv3870, asv8472, asv52758, asv54252, asv57827)
+
+pderma_list <- pderma_list %>% reduce(full_join, by='Sample')
+
+#pderma_list <- rename(pderma_list, total_read_sample = total_read_sample.x)
+#pderma_list <- rename(pderma_list, Depth = Depth.x)
+#pderma_list <- rename(pderma_list, decy = decy.x)
+pderma_list <- rename(pderma_list, copies_seq3870 = copies.x)
+pderma_list <- rename(pderma_list, copies_seq8472 = copies.y)
+pderma_list <- rename(pderma_list, copies_seq52758 = copies.x.x)
+pderma_list <- rename(pderma_list, copies_seq54252 = copies.y.y)
+pderma_list <- rename(pderma_list, copies_seq57827 = copies)
+
+pderma_list$all_pderma_sum <- rowSums(pderma_list[ , c("copies_seq3870", "copies_seq8472", "copies_seq52758", "copies_seq54252", "copies_seq57827")])
+
+pderma_list <- pderma_list %>% mutate(rel_abund = all_pderma_sum / total_read_sample * 100)
+
+pderma_plot <- plot_odv(pderma_list)
+```
+
+
+```{r cars}
+####Pcoccus######
+asv9600 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv9600.tsv")
+
+name <- "asv9600"
+
+#asv3870_plot <- plot_odv(asv3870)
+
+
+asv14271 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv14271.tsv")
+
+name <- "asv14271"
+
+#asv8472_plot <- plot_odv(asv8472)
+
+
+asv17508 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv17508.tsv")
+
+name <- "asv17508"
+
+#asv52758_plot <- plot_odv(asv52758)
+
+
+asv21194 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv21194.tsv")
+
+name <- "asv21194"
+
+
+
+asv28197 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv28197.tsv")
+
+name <- "asv28197"
+
+
+asv30308 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv30308.tsv")
+
+name <- "asv30308"
+
+
+asv30570 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv30570.tsv")
+
+name <- "asv30570"
+
+
+asv41264 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv41264.tsv")
+
+name <- "asv41264"
+
+
+asv42836 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv42836.tsv")
+
+name <- "asv42836"
+
+
+pcoccus_list <- list(asv9600, asv14271, asv17508, asv21194, asv28197, asv30308, asv30570, asv41264, asv42836)
+
+pcoccus_list <- pcoccus_list %>% reduce(full_join, by='Sample')
+
+#pderma_list <- rename(pderma_list, total_read_sample = total_read_sample.x)
+#pderma_list <- rename(pderma_list, Depth = Depth.x)
+#pderma_list <- rename(pderma_list, decy = decy.x)
+pcoccus_list <- rename(pcoccus_list, copies_asv9600 = copies.x)
+pcoccus_list <- rename(pcoccus_list, copies_asv14271 = copies.y)
+pcoccus_list <- rename(pcoccus_list, copies_asv17508 = copies.x.x)
+pcoccus_list <- rename(pcoccus_list, copies_asv21194 = copies.y.y)
+pcoccus_list <- rename(pcoccus_list, copies_asv28197 = copies.x.x.x)
+pcoccus_list <- rename(pcoccus_list, copies_asv30308 = copies.y.y.y)
+pcoccus_list <- rename(pcoccus_list, copies_asv30570 = copies.x.x.x.x)
+pcoccus_list <- rename(pcoccus_list, copies_asv41264 = copies.y.y.y.y)
+pcoccus_list <- rename(pcoccus_list, copies_asv42836 = copies)
+
+pcoccus_list$all_pcoccus_sum <- rowSums(pcoccus_list[ , c("copies_asv9600", "copies_asv14271", "copies_asv17508", "copies_asv21194", "copies_asv28197", "copies_asv30308", "copies_asv30570", "copies_asv41264", "copies_asv42836")])
+
+pcoccus_list <- pcoccus_list %>% mutate(rel_abund = all_pcoccus_sum / total_read_sample * 100)
+
+pcoccus_plot <- plot_odv(pcoccus_list)
+
+```
+
+
+```{r cars}
+####Putative class IX######
+
+asv1248 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv1248.tsv")
+
+asv1248 <- asv1248 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv1248"
+
+asv1248_plot <- plot_odv(asv1248)
+
+
+asv2562 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv2562.tsv")
+
+name <- "asv2562"
+
+asv2562 <- asv2562 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+asv2562_plot <- plot_odv(asv2562)
+
+
+asv1638 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv1638.tsv")
+
+name <- "asv1638"
+
+asv1638 <- asv1638 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+asv1638_plot <- plot_odv(asv1638)
+
+
+asv3858 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv3858.tsv")
+
+name <- "asv3858"
+
+asv3858 <- asv3858 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+asv3858_plot <- plot_odv(asv3858)
+
+
+asv17799 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv17799.tsv")
+
+name <- "asv17799"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv22206 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv22206.tsv")
+
+name <- "asv22206"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv35374 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv35374.tsv")
+
+name <- "asv35374"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv57981 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv57981.tsv")
+
+name <- "asv57981"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv3019 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv3019.tsv")
+
+name <- "asv3019"
+
+asv3019 <- asv3019 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+asv3019_plot <- plot_odv(asv3019)
+
+
+asv7021 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv7021.tsv")
+
+name <- "asv7021"
+
+asv7021 <- asv7021 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+asv7021_plot <- plot_odv(asv7021)
+
+
+asv26923 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv26923.tsv")
+
+name <- "asv26923"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv30087 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv30087.tsv")
+
+name <- "asv30087"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv63408 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv63408.tsv")
+
+name <- "asv63408"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv6637 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv6637.tsv")
+
+name <- "asv6637"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv41934 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv41934.tsv")
+
+name <- "asv41934"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+ix_list <- list(asv1248, asv2562, asv1638, asv3858, asv17799, asv22206, asv35374, asv57981, asv3019, asv7021, asv26923, asv30087, asv63408, asv6637, asv41934)
+
+ix_list <- ix_list %>% reduce(full_join, by='Sample')
+
+#pderma_list <- rename(pderma_list, total_read_sample = total_read_sample.x)
+#pderma_list <- rename(pderma_list, Depth = Depth.x)
+#pderma_list <- rename(pderma_list, decy = decy.x)
+ix_list <- rename(ix_list, copies_asv1248 = copies.x)
+ix_list <- rename(ix_list, copies_asv2562 = copies.y)
+ix_list <- rename(ix_list, copies_asv1638 = copies.x.x)
+ix_list <- rename(ix_list, copies_asv3858 = copies.y.y)
+ix_list <- rename(ix_list, copies_asv17799 = copies.x.x.x)
+ix_list <- rename(ix_list, copies_asv22206 = copies.y.y.y)
+ix_list <- rename(ix_list, copies_asv35374 = copies.x.x.x.x)
+ix_list <- rename(ix_list, copies_asv57981 = copies.y.y.y.y)
+ix_list <- rename(ix_list, copies_asv3019 = copies.x.x.x.x.x)
+ix_list <- rename(ix_list, copies_asv7021 = copies.y.y.y.y.y)
+ix_list <- rename(ix_list, copies_asv26923 = copies.x.x.x.x.x.x)
+ix_list <- rename(ix_list, copies_asv30087 = copies.y.y.y.y.y.y)
+ix_list <- rename(ix_list, copies_asv63408 = copies.x.x.x.x.x.x.x)
+ix_list <- rename(ix_list, copies_asv6637 = copies.y.y.y.y.y.y.y)
+ix_list <- rename(ix_list, copies_asv41934 = copies)
+
+ix_list$all_ix_sum <- rowSums(ix_list[ , c("copies_asv1248", "copies_asv2562", "copies_asv1638", "copies_asv3858", "copies_asv17799", "copies_asv22206", "copies_asv35374", "copies_asv57981", "copies_asv3019", "copies_asv7021", "copies_asv26923", "copies_asv30087", "copies_asv63408", "copies_asv6637", "copies_asv41934")])
+
+ix_list <- ix_list %>% mutate(rel_abund = all_ix_sum / total_read_sample * 100)
+
+ix_plot <- plot_odv(ix_list)
+```
+
+
+```{r cars}
+#Chloroparvula
+
+asv6001 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv6001.tsv")
+
+asv6001 <- asv6001 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv6001"
+
+asv6001_plot <- plot_odv(asv6001)
+
+
+asv7584 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv7584.tsv")
+
+name <- "asv7584"
+
+#asv2562_plot <- plot_odv(asv2562)
+
+
+asv9844 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv9844.tsv")
+
+name <- "asv9844"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv9979 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv9979.tsv")
+
+name <- "asv9979"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv17744 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv17744.tsv")
+
+name <- "asv17744"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv21947 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv21947.tsv")
+
+name <- "asv21947"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv23875 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv23875.tsv")
+
+name <- "asv23875"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv31574 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv31574.tsv")
+
+name <- "asv31574"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv54776 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv54776.tsv")
+
+name <- "asv54776"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+asv57716 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv57716.tsv")
+
+name <- "asv57716"
+
+#asv3019_plot <- plot_odv(asv3019)
+
+
+Chloroparvula_list <- list(asv6001, asv7584, asv9844, asv9979, asv17744, asv21947, asv23875, asv31574, asv54776, asv57716)
+
+Chloroparvula_list <- Chloroparvula_list %>% reduce(full_join, by='Sample')
+
+Chloroparvula_list <- rename(Chloroparvula_list, total_read_sample = total_read_sample.x)
+Chloroparvula_list <- rename(Chloroparvula_list, Depth = Depth.x)
+Chloroparvula_list <- rename(Chloroparvula_list, decy = decy.x)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv6001 = copies.x)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv7584 = copies.y)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv9844 = copies.x.x)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv9979 = copies.y.y)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv17744 = copies.x.x.x)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv21947 = copies.y.y.y)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv23875 = copies.x.x.x.x)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv31574 = copies.y.y.y.y)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv54776 = copies.x.x.x.x.x)
+Chloroparvula_list <- rename(Chloroparvula_list, copies_asv57716 = copies.y.y.y.y.y)
+
+Chloroparvula_list$all_Chloroparvula_sum <- rowSums(Chloroparvula_list[ , c("copies_asv6001", "copies_asv7584", "copies_asv9844", "copies_asv9979", "copies_asv17744", "copies_asv21947", "copies_asv23875", "copies_asv31574", "copies_asv54776", "copies_asv57716")])
+
+Chloroparvula_list <- Chloroparvula_list %>% mutate(rel_abund = all_Chloroparvula_sum / total_read_sample * 100)
+
+Chloroparvula_plot <- plot_odv(Chloroparvula_list)
+```
+
+
+```{r cars}
+#Chloropicon
+
+asv8101 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv8101.tsv")
+
+asv8101 <- asv8101 %>% mutate(rel_abund = copies / total_read_sample * 100)
+
+name <- "asv8101"
+
+asv8101_plot <- plot_odv(asv8101)
+
+
+asv8646 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv8646.tsv")
+
+name <- "asv8646"
+
+
+
+asv8878 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv8878.tsv")
+
+name <- "asv8878"
+
+
+
+asv10382 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv10382.tsv")
+
+name <- "asv10382"
+
+
+
+
+asv22378 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv22378.tsv")
+
+name <- "asv22378"
+
+
+
+
+asv22384 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv22384.tsv")
+
+name <- "asv22384"
+
+
+
+
+asv36361 <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/profiles_data/asv_profiles/prasino_only_metadata_asv36361.tsv")
+
+name <- "asv36361"
+
+
+
+
+Chloropicon_list <- list(asv8101, asv8646, asv8878, asv10382, asv22378, asv22384, asv36361)
+
+Chloropicon_list <- Chloropicon_list %>% reduce(full_join, by='Sample')
+
+#Chloropicon_list <- rename(Chloropicon_list, total_read_sample = total_read_sample.x)
+#Chloropicon_list <- rename(Chloropicon_list, Depth = Depth.x)
+#Chloropicon_list <- rename(Chloropicon_list, decy = decy.x)
+Chloropicon_list <- rename(Chloropicon_list, copies_asv8101 = copies.x)
+Chloropicon_list <- rename(Chloropicon_list, copies_asv8646 = copies.y)
+Chloropicon_list <- rename(Chloropicon_list, copies_asv8878 = copies.x.x)
+Chloropicon_list <- rename(Chloropicon_list, copies_asv10382 = copies.y.y)
+Chloropicon_list <- rename(Chloropicon_list, copies_asv22378 = copies.x.x.x)
+Chloropicon_list <- rename(Chloropicon_list, copies_asv22384 = copies.y.y.y)
+Chloropicon_list <- rename(Chloropicon_list, copies_asv36361 = copies)
+
+Chloropicon_list$all_Chloropicon_sum <- rowSums(Chloropicon_list[ , c("copies_asv8101", "copies_asv8646", "copies_asv8878", "copies_asv10382", "copies_asv22378", "copies_asv22384", "copies_asv36361")])
+
+Chloropicon_list <- Chloropicon_list %>% mutate(rel_abund = all_Chloropicon_sum / total_read_sample * 100)
+
+name <- "Chloropicon"
+
+Chloropicon_plot <- plot_odv(Chloropicon_list)
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+asv6_plot
+
+ggsave(filename = "asv6_plot.pdf", plot= asv6_plot, device = "pdf", width = 10, height = 10)
+
+asv81_plot
+
+ggsave(filename = "asv81_plot.pdf", plot= asv81_plot, device = "pdf", width = 10, height = 10)
+
+asv61_plot
+
+ggsave(filename = "asv61_plot.pdf", plot= asv61_plot, device = "pdf", width = 10, height = 10)
+
+asv273_plot
+
+ggsave(filename = "asv273_plot.pdf", plot= asv273_plot, device = "pdf", width = 10, height = 10)
+
+asv177_plot
+
+ggsave(filename = "asv177_plot.pdf", plot= asv177_plot, device = "pdf", width = 10, height = 10)
+
+asv77_plot
+
+ggsave(filename = "asv77_plot.pdf", plot= asv77_plot, device = "pdf", width = 10, height = 10)
+```
+
+
+```{r pressure, echo=FALSE}
+
+prasi_plot
+
+ggsave(filename = "prasi_plot.pdf", plot= prasi_plot, device = "pdf", width = 10, height = 10)
+
+pderma_plot
+
+ggsave(filename = "pderma_plot.pdf", plot= pderma_plot, device = "pdf", width = 10, height = 10)
+
+pcoccus_plot
+
+ggsave(filename = "pcoccus_plot.pdf", plot= pcoccus_plot, device = "pdf", width = 10, height = 10)
+
+Chloroparvula_plot
+
+ggsave(filename = "Chloroparvula_plot.pdf", plot= Chloroparvula_plot, device = "pdf", width = 10, height = 10)
+
+Chloropicon_plot
+
+ggsave(filename = "Chloropicon_plot.pdf", plot= Chloropicon_plot, device = "pdf", width = 10, height = 10)
+
+ix_plot
+
+ggsave(filename = "ix_plot.pdf", plot= ix_plot, device = "pdf", width = 10, height = 10)
+
+asv1156_plot
+
+ggsave(filename = "asv1156_plot.pdf", plot= asv1156_plot, device = "pdf", width = 10, height = 10)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -1,0 +1,313 @@
+---
+title: "circle graphs"
+author: "charlotte"
+date: "7/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(tibble)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+prasino_data <- read_csv("/Users/ceckmann/Desktop/bats_2016_2019/metadata/supplemental_tables/counts_together5_metadata_prasinos.csv")
+
+prasino_data$percent_prasino_of_plastid <- prasino_data$total_prasino_sample/prasino_data$total_plastid_sample * 100
+
+prasino_data$prasi_sum <- rowSums(prasino_data[ , c("seq2883",
+"seq3768",
+"seq5929",
+"seq10835",
+"seq13406",
+"seq13534",
+"seq20223",
+"seq28442",
+"seq29225",
+"seq40454",
+"seq46479",
+"seq49019",
+"seq54940",
+"seq54953",
+"seq55021",
+"seq60686")], na.rm=TRUE)
+
+prasino_data$prasii_doli_sum <- rowSums(prasino_data[ , c("seq18122",
+"seq32339",
+"seq40809",
+"seq42169",
+"seq13532")], na.rm=TRUE)
+
+prasino_data$prasii_bathy_sum <- rowSums(prasino_data[ , c("seq1412",
+"seq177",
+"seq7808",
+"seq11443",
+"seq11662", 
+"seq26498", 
+"seq29394", 
+"seq56842",
+"seq61094",
+"seq63770",
+"seq65687")], na.rm=TRUE)
+
+prasino_data$prasii_ostreoi_sum <- rowSums(prasino_data[ , c("seq1296",
+"seq30899")], na.rm=TRUE)
+
+prasino_data$prasii_ostreoii_sum <- rowSums(prasino_data[ , c(
+"seq6",
+"seq77",
+"seq2347", 
+"seq2949", 
+"seq3014", 
+"seq13409",
+"seq13694",
+"seq18351",
+"seq23198",
+"seq26542",
+"seq28856",
+"seq33032",
+"seq36165",
+"seq42867",
+"seq46495",
+"seq54944",
+"seq55070",
+"seq56821",
+"seq57947",
+"seq58652",
+"seq41740")], na.rm=TRUE)
+
+prasino_data$prasii_mami_sum <- rowSums(prasino_data[ , c("seq3402")], na.rm=TRUE)
+
+prasino_data$prasii_microe1_sum <- rowSums(prasino_data[ , c(
+"seq503",
+"seq12724")], na.rm=TRUE)
+
+prasino_data$prasii_microd_sum <- rowSums(prasino_data[ , c(
+"seq2535",
+"seq31345",
+"seq61975"
+)], na.rm=TRUE)
+
+prasino_data$prasii_microcand2_sum <- rowSums(prasino_data[ , c(
+"seq1156")], na.rm=TRUE)
+
+prasino_data$prasii_microcand1_sum <- rowSums(prasino_data[ , c("seq81",
+"seq40398")], na.rm=TRUE)
+
+prasino_data$prasii_microa_sum <- rowSums(prasino_data[ , c(
+"seq345",
+"seq1217", 
+"seq61", 
+"seq273", 
+"seq816")], na.rm=TRUE)
+
+prasino_data$prasii_microabc_sum <- rowSums(prasino_data[ , c(
+"seq31558",
+"seq33106",
+"seq54488",
+"seq2277",
+"seq18746",
+"seq20924",
+"seq21175",
+"seq26857",
+"seq39525",
+"seq40606",
+"seq53633")], na.rm=TRUE)
+
+prasino_data$prasiv_sum <- rowSums(prasino_data[ , c("seq16961",
+"seq34536",
+"seq59086")], na.rm=TRUE)
+
+prasino_data$prasv_sum <- rowSums(prasino_data[ , c("seq6699")], na.rm=TRUE)
+
+prasino_data$prasvi_pcoccus_sum <- rowSums(prasino_data[ , c("seq9600",
+"seq14271",
+"seq17508",
+"seq21194",
+"seq28197", 
+"seq30308", 
+"seq30570", 
+"seq41264",
+"seq42836")], na.rm=TRUE)
+
+prasino_data$prasvi_pderma_sum <- rowSums(prasino_data[ , c("seq3870",
+"seq8472",
+"seq52758",
+"seq54252",
+"seq57827")], na.rm=TRUE)
+
+prasino_data$prasvii_chloropicon_sum <- rowSums(prasino_data[ , c("seq8101",
+"seq8646",
+"seq8878",
+"seq10382",
+"seq22378",
+"seq22384",
+"seq36361")], na.rm=TRUE)
+
+prasino_data$prasviii_sum <- rowSums(prasino_data[ , c("seq6001",
+"seq7584",
+"seq9844",
+"seq9979",
+"seq17744",
+"seq21947",
+"seq23875",
+"seq31574",
+"seq54776",
+"seq57716")], na.rm=TRUE)
+
+prasino_data$putative_ix_sum <- rowSums(prasino_data[ , c("seq1248",
+"seq2562",
+"seq1638",
+"seq3858",
+"seq17799",
+"seq22206",
+"seq35374",
+"seq57981",
+"seq3019",
+"seq7021",
+"seq26923",
+"seq30087",
+"seq63408",
+"seq6637",
+"seq41934")], na.rm=TRUE)
+
+prasino_data_q1 <- prasino_data[which(prasino_data$percent_prasino_of_plastid < 33 & prasino_data$chl.ug.kg. < 0.188),]
+
+prasino_data_q3 <- prasino_data[which(prasino_data$percent_prasino_of_plastid >= 33 & prasino_data$chl.ug.kg. < 0.188),]
+
+prasino_data_q4 <- prasino_data[which(prasino_data$percent_prasino_of_plastid >= 33 & prasino_data$chl.ug.kg. >= 0.188),]
+
+prasino_data_q2 <- prasino_data[which(prasino_data$percent_prasino_of_plastid < 33 & prasino_data$chl.ug.kg. >= 0.188),]
+
+#all of these should add up to 409
+
+#get sum of all ASVs in this quadrant
+
+prasino_data_q1_asv_sums <- prasino_data_q1 %>% summarise(across(c(seq6:seq65687), sum, na.rm=TRUE))
+
+prasino_data_q3_asv_sums <- prasino_data_q3 %>% summarise(across(c(seq6:seq65687), sum, na.rm=TRUE))
+
+prasino_data_q4_asv_sums <- prasino_data_q4 %>% summarise(across(c(seq6:seq65687), sum, na.rm=TRUE))
+
+prasino_data_q2_asv_sums <- prasino_data_q2 %>% summarise(across(c(seq6:seq65687), sum, na.rm=TRUE))
+
+#get all columns that are non-zero (this is count of ASVs in that quadrant)
+
+prasino_data_q1_asv_sums$count <- rowSums(prasino_data_q1_asv_sums!=0)
+
+prasino_data_q3_asv_sums$count <- rowSums(prasino_data_q3_asv_sums!=0)
+
+prasino_data_q4_asv_sums$count <- rowSums(prasino_data_q4_asv_sums!=0)
+
+prasino_data_q2_asv_sums$count <- rowSums(prasino_data_q2_asv_sums!=0)
+
+#select just what we want
+
+prasino_data_q1_2 <- prasino_data_q1[,c("Sample", "prasvi_pderma_sum", "prasvi_pcoccus_sum", "putative_ix_sum", "prasi_sum", "prasv_sum", "prasviii_sum",  "prasvii_chloropicon_sum", "prasiv_sum", "prasii_doli_sum", "prasii_bathy_sum", "prasii_ostreoi_sum", "prasii_ostreoii_sum", "prasii_mami_sum", "prasii_microe1_sum", "prasii_microd_sum", "prasii_microcand2_sum", "prasii_microcand1_sum", "prasii_microa_sum", "prasii_microabc_sum")]
+
+prasino_data_q3_2 <- prasino_data_q3[,c("Sample", "prasvi_pderma_sum", "prasvi_pcoccus_sum", "putative_ix_sum", "prasi_sum", "prasv_sum", "prasviii_sum",  "prasvii_chloropicon_sum", "prasiv_sum", "prasii_doli_sum", "prasii_bathy_sum", "prasii_ostreoi_sum", "prasii_ostreoii_sum", "prasii_mami_sum", "prasii_microe1_sum", "prasii_microd_sum", "prasii_microcand2_sum", "prasii_microcand1_sum", "prasii_microa_sum", "prasii_microabc_sum")]
+
+prasino_data_q4_2 <- prasino_data_q4[,c("Sample", "prasvi_pderma_sum", "prasvi_pcoccus_sum", "putative_ix_sum", "prasi_sum", "prasv_sum", "prasviii_sum",  "prasvii_chloropicon_sum", "prasiv_sum", "prasii_doli_sum", "prasii_bathy_sum", "prasii_ostreoi_sum", "prasii_ostreoii_sum", "prasii_mami_sum", "prasii_microe1_sum", "prasii_microd_sum", "prasii_microcand2_sum", "prasii_microcand1_sum", "prasii_microa_sum", "prasii_microabc_sum")]
+
+prasino_data_q2_2 <- prasino_data_q2[,c("Sample", "prasvi_pderma_sum", "prasvi_pcoccus_sum", "putative_ix_sum", "prasi_sum", "prasv_sum", "prasviii_sum",  "prasvii_chloropicon_sum", "prasiv_sum", "prasii_doli_sum", "prasii_bathy_sum", "prasii_ostreoi_sum", "prasii_ostreoii_sum", "prasii_mami_sum",  "prasii_microe1_sum", "prasii_microd_sum", "prasii_microcand2_sum", "prasii_microcand1_sum", "prasii_microa_sum", "prasii_microabc_sum")]
+
+#sum up all the prasino group sums and make into new df
+
+prasino_data_q1_group_sums <- prasino_data_q1_2 %>% summarise(across(c(prasvi_pderma_sum:prasii_microabc_sum), sum, na.rm=TRUE))
+
+prasino_data_q2_group_sums <- prasino_data_q2_2 %>% summarise(across(c(prasvi_pderma_sum:prasii_microabc_sum), sum, na.rm=TRUE))
+
+prasino_data_q3_group_sums <- prasino_data_q3_2 %>% summarise(across(c(prasvi_pderma_sum:prasii_microabc_sum), sum, na.rm=TRUE))
+
+prasino_data_q4_group_sums <- prasino_data_q4_2 %>% summarise(across(c(prasvi_pderma_sum:prasii_microabc_sum), sum, na.rm=TRUE))
+
+#transpose
+
+prasino_data_q1_group_sums_t <- t(prasino_data_q1_group_sums)
+
+prasino_data_q1_group_sums_t <- as.data.frame(prasino_data_q1_group_sums_t)
+
+prasino_data_q2_group_sums_t <- t(prasino_data_q2_group_sums)
+
+prasino_data_q2_group_sums_t <- as.data.frame(prasino_data_q2_group_sums_t)
+
+prasino_data_q3_group_sums_t <- t(prasino_data_q3_group_sums)
+
+prasino_data_q3_group_sums_t <- as.data.frame(prasino_data_q3_group_sums_t)
+
+prasino_data_q4_group_sums_t <- t(prasino_data_q4_group_sums)
+
+prasino_data_q4_group_sums_t <- as.data.frame(prasino_data_q4_group_sums_t)
+
+#set row names to column
+
+prasino_data_q1_group_sums_t <- tibble::rownames_to_column(prasino_data_q1_group_sums_t, "Taxa")
+
+prasino_data_q2_group_sums_t <- tibble::rownames_to_column(prasino_data_q2_group_sums_t, "Taxa")
+
+prasino_data_q3_group_sums_t <- tibble::rownames_to_column(prasino_data_q3_group_sums_t, "Taxa")
+
+prasino_data_q4_group_sums_t <- tibble::rownames_to_column(prasino_data_q4_group_sums_t, "Taxa")
+
+prasino_data_q1_group_sums_t$Taxa <- factor(prasino_data_q1_group_sums_t$Taxa, levels = prasino_data_q1_group_sums_t$Taxa)
+
+prasino_data_q2_group_sums_t$Taxa <- factor(prasino_data_q2_group_sums_t$Taxa, levels = prasino_data_q2_group_sums_t$Taxa)
+
+prasino_data_q3_group_sums_t$Taxa <- factor(prasino_data_q3_group_sums_t$Taxa, levels = prasino_data_q3_group_sums_t$Taxa)
+
+prasino_data_q4_group_sums_t$Taxa <- factor(prasino_data_q4_group_sums_t$Taxa, levels = prasino_data_q4_group_sums_t$Taxa)
+```
+
+
+```{r cars}
+bp_q1 <- ggplot(prasino_data_q1_group_sums_t, aes(x="", y=V1, fill=Taxa))+geom_bar(width = 1, stat = "identity")
+pie_q1 <- bp_q1 + coord_polar("y", start=0) +theme(axis.text = element_blank(), axis.ticks = element_blank(), panel.grid  = element_blank(), panel.background = element_blank()) 
+
+bp_q2 <- ggplot(prasino_data_q2_group_sums_t, aes(x="", y=V1, fill=Taxa))+geom_bar(width = 1, stat = "identity")
+pie_q2 <- bp_q2 + coord_polar("y", start=0) +theme(axis.text = element_blank(), axis.ticks = element_blank(), panel.grid  = element_blank(), panel.background = element_blank())
+
+bp_q3 <- ggplot(prasino_data_q3_group_sums_t, aes(x="", y=V1, fill=Taxa))+geom_bar(width = 1, stat = "identity")
+pie_q3 <- bp_q3 + coord_polar("y", start=0) +theme(axis.text = element_blank(), axis.ticks = element_blank(), panel.grid  = element_blank(), panel.background = element_blank())
+
+bp_q4 <- ggplot(prasino_data_q4_group_sums_t, aes(x="", y=V1, fill=Taxa))+geom_bar(width = 1, stat = "identity")
+pie_q4 <- bp_q4 + coord_polar("y", start=0) +theme(axis.text = element_blank(), axis.ticks = element_blank(), panel.grid  = element_blank(), panel.background = element_blank())
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+q1_graph <- pie_q1 + scale_fill_manual(values =c("#604243", "#5E292A", "#393A39", "#8A3433", "#D12D37", "#DA672C", "#E69832", "#E5C339",  "#C7D240", "#95C287", "#ECD5DF", "#E394B7", "#B5A7CE", "#76A6D7", "#2567AD", "#4880BF", "#1A4A92", "#97CEEB", "#F3F7FB"))
+
+q1_graph
+
+ggsave("q1_reclassified_v2.pdf", plot=q1_graph, height=10, width=10, units="cm")
+
+q2_graph <- pie_q2 + scale_fill_manual(values =c("#604243", "#5E292A", "#393A39", "#8A3433", "#D12D37", "#DA672C", "#E69832", "#E5C339",  "#C7D240", "#95C287", "#ECD5DF", "#E394B7", "#B5A7CE", "#76A6D7", "#2567AD", "#4880BF", "#1A4A92", "#97CEEB", "#F3F7FB"))
+
+q2_graph
+
+ggsave("q2_reclassified_v2.pdf", plot=q2_graph, height=10, width=10, units="cm")
+
+q3_graph <- pie_q3 + scale_fill_manual(values =c("#604243", "#5E292A", "#393A39", "#8A3433", "#D12D37", "#DA672C", "#E69832", "#E5C339",  "#C7D240", "#95C287", "#ECD5DF", "#E394B7", "#B5A7CE", "#76A6D7", "#2567AD", "#4880BF", "#1A4A92", "#97CEEB", "#F3F7FB"))
+
+q3_graph
+
+ggsave("q3_reclassified_v2.pdf", plot=q3_graph, height=10, width=10, units="cm")
+
+q4_graph <- pie_q4 + scale_fill_manual(values =c("#604243", "#5E292A", "#393A39", "#8A3433", "#D12D37", "#DA672C", "#E69832", "#E5C339",  "#C7D240", "#95C287", "#ECD5DF", "#E394B7", "#B5A7CE", "#76A6D7", "#2567AD", "#4880BF", "#1A4A92", "#97CEEB", "#F3F7FB"))
+
+q4_graph
+
+ggsave("q4_reclassified_v2.pdf", plot=q4_graph, height=10, width=10, units="cm")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

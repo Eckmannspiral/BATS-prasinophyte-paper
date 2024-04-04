@@ -1,0 +1,543 @@
+---
+title: "ODV"
+author: "charlotte"
+date: "6/16/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(reshape2)
+library(MBA)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+setwd("/Users/ceckmann/Downloads/")
+source('/Users/ceckmann/Downloads/v1v2_dataset_import_v6.R')
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+#Percent prasinophytes of plastid plot
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(percent_prasino_of_plastid = percent_prasino_of_plastid * 1000) %>%
+  select(decy,Depth,percent_prasino_of_plastid) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(percent_prasino_of_plastid),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 2, n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'Depth'), value.name = 'percent_prasino_of_plastid') %>%
+  filter(Depth < 0) %>%
+  mutate(percent_prasino_of_plastid = round(percent_prasino_of_plastid, 1),
+         percent_prasino_of_plastid = ifelse(percent_prasino_of_plastid < 0, 0, percent_prasino_of_plastid),
+         percent_prasino_of_plastid = replace_na(percent_prasino_of_plastid,0))
+
+mba_results %>%
+  filter(Depth > -300, #filter to show only top 300 (see above)
+        Depth < -1) %>%
+  ggplot(aes(x = decy, y = Depth)) +
+  geom_raster(aes(fill = percent_prasino_of_plastid)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+                        colours = odvpalette, limits = c(0, 100000)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    xlim(2016.5,2020) +
+    geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               color = "black","size" = 0.6,
+               alpha = 0.4, shape = 19) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+#plot of percent prasinophyte of plastid
+
+#read in data table generated in BATS_counts2.Rmd
+
+prasino_data <- read_csv("/Users/ceckmann/Desktop/bats_2016_2019/metadata/supplemental_tables/counts_together6_metadata_all.csv")
+
+prasino_data$percent_prasino_of_plastid <- prasino_data$total_prasino_sample/prasino_data$total_plastid_sample * 100
+
+#turn NAs into 0
+
+prasino_data["percent_prasino_of_plastid"][is.na(prasino_data["percent_prasino_of_plastid"])] <- 0
+
+#choose just 300-ish m and up
+
+prasino_data_300 <- prasino_data[prasino_data$Depth <= 315,]
+
+odvpalette <- c("#273989", "#A6EEFF", "#B8F0FD", "#E3F9BD", "#F8FFD8", "#ffe184",  "#F5C328", "#ff942f", "#f45b16")
+
+name <- "pras euk plot"
+
+pras_euk_plot <- plot_odv(prasino_data)
+
+
+```
+
+
+```{r pressure, echo=FALSE}
+#now change parameters to make Chl plot \
+
+odvpalette <- c("#273989", "#A6EEFF", "#B8F0FD", "#E3F9BD", "#f1ffd8", "#F8FFD8", "#FBE5A2", "#ffe184", "#F5CF5C", "#F5C328", "#ff942f", "#F58418", "#f45b16")
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(Chl = Chl * 1000) %>%
+  select(decy,Depth,Chl) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(Chl),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+#from the documentation: initial size of the spline space in the hierarchical construction along the x axis.If the rectangular domain is a square, n = m = 1 is recommended. If the x axis is k times the length of the y axis, n = 1, m = k is recommended. In the figure the chl graph is more compressed in x-axis bc only goes to 250 m
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 4, n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'Depth'), value.name = 'Chl') %>%
+  filter(Depth < 0) %>%
+  mutate(Chl = round(Chl, 1),
+         Chl = ifelse(Chl < 0, 0, Chl),
+         Chl = replace_na(Chl,0))
+
+mba_results %>%
+  filter(Depth > -300, #filter to show only top 300 (see above)
+         Depth < -1) %>%
+  ggplot(aes(x = decy, y = Depth)) +
+  geom_raster(aes(fill = Chl)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+    colours = odvpalette, limits=c(0,600)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    xlim(2016.5,2020) +
+    geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               color = "black","size" = 1,
+               alpha = 0.5, shape = 19) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+overall_chl <- metadata_new[c("ID", "decy", "yyyymmdd", "Season", "Depth", "Chl")]
+
+overall_chl <- na.omit(overall_chl)
+
+#remove the outlier but make a note of it in the figure legend; it's still included in the stats
+
+overall_chl2 <-overall_chl[!(overall_chl$ID== 1032702001),] 
+
+name <- "chl"
+
+chl_plot <- plot_odv(overall_chl2)
+```
+
+
+```{r pressure, echo=FALSE}
+#now change parameters to make nitrate+nitrite plot
+
+#rename nitrate+nitrite column so it's easier to use
+
+metadata_new <- metadata_new %>% rename(nitrate_nitrite = 'NO3+NO2(umol/kg)')
+
+overall_nit <- metadata_new[c("ID", "decy","Depth", "nitrate_nitrite", "Season")]
+
+overall_nit <- na.omit(overall_nit)
+
+overall_nit_1000 <- overall_nit[overall_nit$Depth <= 1000,]
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(nitrate_nitrite = nitrate_nitrite * 1000) %>%
+  select(decy,Depth,nitrate_nitrite) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(nitrate_nitrite),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 3, n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'Depth'), value.name = 'nitrate_nitrite') %>%
+  filter(Depth < 0) %>%
+  mutate(nitrate_nitrite = round(nitrate_nitrite, 1),
+         nitrate_nitrite = ifelse(nitrate_nitrite < 0, 0, nitrate_nitrite),
+         nitrate_nitrite = replace_na(nitrate_nitrite,0))
+
+mba_results %>%
+  filter(Depth > -300, #filter to show only top 300 (see above)
+         Depth < -1) %>%
+  ggplot(aes(x = decy, y = Depth)) +
+  geom_raster(aes(fill = nitrate_nitrite)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+                        colours = odvpalette, limits=c(0,8000)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    xlim(2016.5,2020) +
+    geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               color = "black","size" = 0.6,
+               alpha = 0.4, shape = 19) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+name <- "nitrate_nitrite"
+
+nit_plot <- plot_odv(overall_nit_1000)
+```
+
+
+```{r pressure, echo=FALSE}
+#now change parameters to make phosphate plot
+
+#rename phosphate column so it's easier to use
+
+metadata_new <- metadata_new %>% rename(phosphate = 'PO4(umol/kg)')
+
+overall_pho <- metadata_new[c("ID", "decy","Depth", "phosphate")]
+
+overall_pho <- na.omit(overall_pho)
+
+#remove the outlier but make a note of it in the figure legend; it's still included in the stats
+
+overall_pho2 <-overall_pho[!(overall_pho$ID== 1032801105),] 
+
+overall_pho2_1000 <- overall_pho2[overall_pho2$Depth <= 1000,]
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(phosphate = phosphate * 1000) %>%
+  select(decy,Depth,phosphate) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(phosphate),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 3 , n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'Depth'), value.name = 'phosphate') %>%
+  filter(Depth < 0) %>%
+  mutate(phosphate = round(phosphate, 1),
+         phosphate = ifelse(phosphate < 0, 0, phosphate),
+         phosphate = replace_na(phosphate,0))
+
+mba_results %>%
+  filter(Depth > -300, #filter to show only top 300 (see above)
+         Depth < -1) %>%
+  ggplot(aes(x = decy, y = Depth)) +
+  geom_raster(aes(fill = phosphate)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+                        colours = odvpalette, limits=c(0,400)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    xlim(2016.5,2020) +
+    geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               color = "black","size" = 0.6,
+               alpha = 0.4, shape = 19) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+name <- "pho"
+
+pho_plot <- plot_odv(overall_pho2_1000)
+```
+
+
+```{r pressure, echo=FALSE}
+#now change parameters to make primary production plot
+
+#rename pp column so it's easier to use
+
+metadata_new <- metadata_new %>% rename(pp = 'pp(mgC/m^3/day)')
+
+overall_pp <- metadata_new[c("ID", "decy","Depth", "pp")]
+
+overall_pp <- na.omit(overall_pp)
+
+overall_pp_300 <- overall_pp[overall_pp$Depth <= 315,]
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(pp = pp * 1000) %>%
+  select(decy,Depth,pp) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(pp),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 3, n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'depth'), value.name = 'pp') %>%
+  filter(depth < 0) %>%
+  mutate(pp = round(pp, 1),
+         pp = ifelse(pp < 0, 0, pp),
+         pp = replace_na(pp,0))
+
+mba_results %>%
+  filter(depth > -145, #filter to show only top 300 (see above)
+         depth < -1) %>%
+  ggplot(aes(x = decy, y = depth)) +
+  geom_raster(aes(fill = pp)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+                        colours = odvpalette, limits = c(0, 11000)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    xlim(2016.5,2020) +
+    geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               color = "black","size" = 1,
+               alpha = 0.4, shape = 19) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+
+name <- "pp"
+
+pp_plot <- plot_odv(overall_pp_300)
+```
+
+
+```{r}
+#now change parameters to make temperature plot
+
+#odvpalette <- c("#273989", "#A6EEFF", "#B8F0FD", "#E3F9BD", "#f1ffd8", "#F8FFD8", "#FBE5A2", "#ffe184", "#F5CF5C", "#F5C328", "#ff942f", "#F58418", "#f45b16")
+
+odvpalette <- c("#273989","#0f28ff", "#40a5ff", "#96ecff", "#f1ffd8",  "#F8FFD8", "#FBE5A2","#ffe184", "#ff942f", "#f45b16")
+
+overall_temp <- metadata_new[c("ID", "decy","Depth", "Temp")]
+
+overall_temp <- na.omit(overall_temp)
+
+overall_temp_300 <- overall_temp[overall_temp$Depth <= 315,]
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(Temp = Temp * 1000) %>%
+  select(decy,Depth,Temp) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(Temp),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 3, n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'Depth'), value.name = 'Temp') %>%
+  filter(Depth < 0) %>%
+  mutate(Temp = round(Temp, 1),
+         Temp = ifelse(Temp < 0, 0, Temp),
+         Temp = replace_na(Temp,0))
+
+mba_results %>%
+  filter(Depth > -300, #filter to show only top 300 (see above)
+         Depth < -1) %>%
+  ggplot(aes(x = decy, y = Depth)) +
+  geom_raster(aes(fill = Temp)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+                        colours = odvpalette, limits = c(17500, 30000)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    #geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               #color = "black","size" = 3,
+               #alpha = 0.4, shape = 8) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+
+name <- "Temp"
+
+temp_plot <- plot_odv(overall_temp_300)
+```
+
+
+```{r}
+odvpalette <- c("#273989","#0f28ff", "#40a5ff", "#96ecff", "#f1ffd8",  "#F8FFD8", "#FBE5A2","#ffe184", "#ff942f", "#f45b16")
+
+overall_sal <- metadata_new[c("ID", "decy","Depth", "CTD_S")]
+
+overall_sal <- na.omit(overall_sal)
+
+overall_sal_300 <- overall_sal[overall_sal$Depth <= 315,]
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(CTD_S = CTD_S * 1000) %>%
+  select(decy,Depth,CTD_S) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(CTD_S),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 3, n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'Depth'), value.name = 'CTD_S') %>%
+  filter(Depth < 0) %>%
+  mutate(CTD_S = round(CTD_S, 1),
+         CTD_S = ifelse(CTD_S < 0, 0, CTD_S),
+         CTD_S = replace_na(CTD_S,0))
+
+mba_results %>%
+  filter(Depth > -300, #filter to show only top 300 (see above)
+         Depth < -1) %>%
+  ggplot(aes(x = decy, y = Depth)) +
+  geom_raster(aes(fill = CTD_S)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+                        colours = odvpalette, limits = c(36300, 37000)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    #geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               #color = "black","size" = 3,
+               #alpha = 0.4, shape = 8) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+
+name <- "Sal"
+
+sal_plot <- plot_odv(overall_sal_300)
+```
+
+
+```{r}
+odvpalette <- c("#273989","#0f28ff", "#40a5ff", "#96ecff", "#f1ffd8",  "#F8FFD8", "#FBE5A2","#ffe184", "#ff942f", "#f45b16")
+
+#rename fluo column so it's easier to use
+
+#metadata_new <- metadata_new %>% rename(fluo = 'Fluo(RFU)')
+
+overall_fluo <- metadata_new[c("ID", "decy","Depth", "fluo")]
+
+overall_fluo <- na.omit(overall_fluo)
+
+overall_fluo_300 <- overall_fluo[overall_fluo$Depth <= 315,]
+
+plot_odv <- function(data) {
+mba <- data %>%
+  filter(!is.na(Depth)) %>%
+  mutate(fluo = fluo * 1000) %>%
+  select(decy,Depth,fluo) %>%
+  mutate(x = as.numeric(unclass(decy)),
+         y = as.numeric(paste0("-",Depth)),
+         z = as.numeric(fluo),
+         y = replace_na(y,0)) %>%
+  select(x,y,z)
+
+mba_results <- mba.surf(mba, no.X = 300, no.Y = 300, extend = T, m = 3, n = 1)
+dimnames(mba_results$xyz.est$z) <- list(mba_results$xyz.est$x, mba_results$xyz.est$y)
+mba_results <- melt(mba_results$xyz.est$z, varnames = c('decy', 'Depth'), value.name = 'fluo') %>%
+  filter(Depth < 0) %>%
+  mutate(fluo = round(fluo, 1),
+         fluo = ifelse(fluo < 0, 0, fluo),
+         fluo = replace_na(fluo,0))
+
+mba_results %>%
+  filter(Depth > -300, #filter to show only top 300 (see above)
+         Depth < -1) %>%
+  ggplot(aes(x = decy, y = Depth)) +
+  geom_raster(aes(fill = fluo)) +
+    scale_fill_gradientn(labels = function(x) x / 1000,
+                        colours = odvpalette, limits = c(0, 400)) +
+    scale_y_continuous(name = "depth (m)\n",
+                       breaks = c(-40,-80,-120,-200,-300),
+                       labels = c("40","80","120","200","300"),
+                       expand = c(0,0)) +
+    xlim(2016.5,2020) +
+    #geom_point(data = mba, aes(x = x, y = y), #mba is the input into the interpolation; only has the original datapoints
+               #color = "black","size" = 3,
+               #alpha = 0.4, shape = 8) +
+    labs(x = NULL, fill = paste0(name)) +
+    theme(axis.text.x = element_text(color = "grey20", angle = 0),
+          panel.background = element_blank())
+}
+
+
+name <- "fluo"
+
+fluo_plot <- plot_odv(overall_fluo_300)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+pras_euk_plot
+
+chl_plot
+
+nit_plot
+
+pho_plot
+
+pp_plot
+
+ggsave(filename = "pras_euk_plot.pdf", plot= pras_euk_plot, device = "pdf", width = 10, height = 10)
+ggsave(filename = "chl_plot.pdf", plot= chl_plot, device = "pdf", width = 15, height = 4.25)
+ggsave(filename = "nit_plot.pdf", plot= nit_plot, device = "pdf", width = 10, height = 10)
+ggsave(filename = "pho_plot.pdf", plot= pho_plot, device = "pdf", width = 10, height = 10)
+ggsave(filename = "pp_plot.pdf", plot= pp_plot, device = "pdf", width = 15, height = 2.5)
+```
+
+
+```{r}
+#plot season bar
+metadata_new$Season <- as.character(metadata_new$Season) 
+
+season_plot <- ggplot(metadata_new, aes(x=decy, y=1, fill=Season)) + 
+  geom_bar(stat = "identity", width=0.01) + xlim(2016.5, 2020) + theme_classic() +            
+  scale_fill_manual(values=c("red2", "yellow2", "slateblue4", "green3"))
+
+season_plot
+
+```
+
+```
+

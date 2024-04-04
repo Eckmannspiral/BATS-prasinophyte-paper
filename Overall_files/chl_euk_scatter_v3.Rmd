@@ -1,0 +1,115 @@
+---
+title: "chl euk"
+author: "charlotte"
+date: "7/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(rstatix)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+#setwd("/Users/ceckmann/Downloads/")
+#source('/Users/ceckmann/Downloads/v1v2_dataset_import_v4.R')
+
+```
+
+
+```{r cars}
+prasino_data <- read_csv("/Users/ceckmann/Desktop/bats_2016_2019/metadata/supplemental_tables/counts_together5_metadata_prasinos.csv")
+
+prasino_data$percent_prasino_of_plastid <- prasino_data$total_prasino_sample/prasino_data$total_plastid_sample * 100
+
+prasino_data_140 <- prasino_data[prasino_data$Nominal_Depth <= 140,]
+
+prasino_data_140$Season <- as.character(prasino_data_140$Season)
+
+prasino_data_140 <- prasino_data_140 %>% drop_na(chl.ug.kg.)
+  
+prasino_data_140$Nominal_Depth <- prasino_data_140$Nominal_Depth*(-1)
+euk_75 <- quantile(prasino_data_140$percent_prasino_of_plastid, 0.75) 
+chl_75 <- quantile(prasino_data_140$chl.ug.kg., 0.75) 
+euk_75
+chl_75
+chl_euk_plot <- ggplot(prasino_data_140, aes(x=chl.ug.kg., y=percent_prasino_of_plastid)) + geom_point(aes(shape=Season, color=Nominal_Depth), size=3)+ geom_hline(yintercept=33, size=0.25)+ geom_vline(xintercept=0.188, size=0.25)+ scale_shape_manual(values=c(17, 20, 8, 23))+ ylim(0,100)+xlim(0,0.6) +theme_classic()
+
+
+#stats
+
+prasino_data_q1<- prasino_data_140[prasino_data_140$percent_prasino_of_plastid <= 33.2 & prasino_data_140$chl.ug.kg. <= 0.188,]
+
+#add a column saying these are q1
+
+prasino_data_q1 <- prasino_data_q1 %>% mutate(quadrant = "q1")
+
+prasino_data_q2<- prasino_data_140[prasino_data_140$percent_prasino_of_plastid <= 33.2 & prasino_data_140$chl.ug.kg. > 0.188,]
+
+prasino_data_q2 <- prasino_data_q2 %>% mutate(quadrant = "q2")
+
+prasino_data_q3<- prasino_data_140[prasino_data_140$percent_prasino_of_plastid > 33.2 & prasino_data_140$chl.ug.kg. <= 0.188,]
+
+prasino_data_q3 <- prasino_data_q3 %>% mutate(quadrant = "q3")
+
+prasino_data_q4<- prasino_data_140[prasino_data_140$percent_prasino_of_plastid > 33.2 & prasino_data_140$chl.ug.kg. > 0.188,]
+
+prasino_data_q4 <- prasino_data_q4 %>% mutate(quadrant = "q4")
+
+
+all_quadrants <- rbind(prasino_data_q1, prasino_data_q2, prasino_data_q3, prasino_data_q4)
+
+shapiro.test(all_quadrants$chl.ug.kg.)
+
+shapiro.test(all_quadrants$percent_prasino_of_plastid)
+
+#compare chl
+
+all_quadrants %>% 
+  group_by(quadrant) %>%
+  get_summary_stats(chl.ug.kg., type = "common")
+
+res.kruskal <- all_quadrants %>% kruskal_test(chl.ug.kg. ~ quadrant)
+res.kruskal
+
+all_quadrants %>% kruskal_effsize(chl.ug.kg. ~ quadrant)
+
+pwc <- all_quadrants %>% 
+  dunn_test(chl.ug.kg. ~ quadrant, p.adjust.method = "bonferroni") 
+pwc
+
+#compare percent plastid
+
+all_quadrants %>% 
+  group_by(quadrant) %>%
+  get_summary_stats(percent_prasino_of_plastid, type = "common")
+
+res.kruskal <- all_quadrants %>% kruskal_test(percent_prasino_of_plastid ~ quadrant)
+res.kruskal
+
+all_quadrants %>% kruskal_effsize(percent_prasino_of_plastid ~ quadrant)
+
+pwc <- all_quadrants %>% 
+  dunn_test(percent_prasino_of_plastid ~ quadrant, p.adjust.method = "bonferroni") 
+pwc
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+chl_euk_plot
+ggsave("chl_euk_plot_reclassified.pdf", plot = chl_euk_plot, width=15, height=10, units="cm", useDingbats=FALSE)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

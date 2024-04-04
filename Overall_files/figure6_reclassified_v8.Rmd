@@ -1,0 +1,999 @@
+---
+title: "20230114-frequency_abundance plotting - refactoring clean version because of concerns with potential errors"
+author: Fabian Wittmers
+date: January 14, 2022
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.path = "abundance_frequency_analysis/",
+                      dpi = 300)
+
+```
+
+## 2022 - 03 - 15
+
++ checking if there is some problem with the seasons. Very high peak for prasinos in spring 2017, does that make sense?
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+
+# core packages
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+
+# plotting extension
+library(patchwork)
+library(scales)
+library(ggnewscale)
+library(ggtext) #for text formatting in ggplots
+
+# color palette libraries:
+library(RColorBrewer)
+library(wesanderson)
+
+# others
+library(janitor)
+library(lubridate) #for date formatting
+library(ggupset)
+
+#logical arguments
+`%notin%` <- Negate(`%in%`)
+
+```
+
+```{r , message=FALSE, warning=FALSE}
+
+setwd("/Users/ceckmann/Downloads/")
+source('/Users/ceckmann/Downloads/v1v2_dataset_import_v6.R')
+
+```
+
+this import script creates 2 main objects:  
++ feature, which is the feature table
++ metadata, which is the bottle sheet from 20210428-BATS_BS_COMBINED_MASTER_2021.4.22.xlsx with some manual modifiations of the v1v2 labels due to inconsistencies with the labeling when mering with the ASV table.
+
+computing relative abundance (out of plastid), then reducing down to keep only prasinophytes
+
+```{r}
+#ASVs  PA assigned as prasinos but that when manually checked are not (see pa_blast_manual_comparisons_summary_v5.xlsx)
+false_prasinos <- read.csv("/Users/ceckmann/Desktop/bats_2016_2019/assignments/PA_blast_comparisons/false_prasinos.csv")
+
+plastid <- feature %>%
+  filter(!is.na(cyanoplastid),
+         # remove cyanobacteria 
+         # + outgroup (mel) 
+         # + uncertainty seqs (cyanoplastid_na =  seqs with unclear place in cyanoplastid tree)
+         cyanoplastid %notin% c("cya_glo","cya","cya_pse","mel","cyanoplastid_na")) %>% 
+  add_count(V1V2_ID, wt = copies, name = "plast_read_sample") %>%
+  mutate(rel_plast_abund = copies / plast_read_sample * 100) %>%
+  filter(!is.na(name), name %notin% false_prasinos$name)%>%
+  # keep only Prasinophytes
+  filter(# remove 0 copy instances
+         copies > 0,
+         !is.na(viridi),
+         viridi %notin% c("Alveo_Green","Chlo_Chlo","Chlo_Trebou",
+                          "Chlo_mix","Chlorara","Chlorophyta","Strepto",
+                          "Strepto_basal", "Chlo_Ped", "PrasII_Mono", "Omed", "2ndaryPlastid")
+          ) %>%
+  select(-cyanoplastid, -pelago, -dictyo, -strameno) %>%
+  clean_names()
+
+plastid
+
+```
+
+reducing metadata to columns that have data in them, then merge into the feature table
+
+```{r}
+
+meta_red <- metadata %>%
+  clean_names() %>%
+  filter(!is.na(v1v2_id)) %>%
+  purrr::discard(~sum(is.na(.x))/length(.x)* 100 >= 95) %>%
+  select(v1v2_id, date, time, month, year, date_time, vert_zone, season, nominal_depth, depth, dcm, temp)
+
+#manual correction of sample names to match metadata
+no_meta <- plastid %>%
+  count(v1v2_id) %>%
+  select(-n) %>%
+  filter(v1v2_id %notin% meta_red$v1v2_id) %>%
+  mutate(v1v2_id_old = v1v2_id,
+         v1v2_id = gsub("^(BS)([0-9]{3}.*)", "\\1_\\2", v1v2_id),
+         v1v2_id = gsub("^(BS)_([0-9]{2}[a-z]{1}.*)", "\\1\\2", v1v2_id)) %>%
+  filter(v1v2_id %in% meta_red$v1v2_id) %>%
+  rename(v1v2_new = v1v2_id)
+#73 without metadata -> removed; 91 kept after this correction
+
+joined <- plastid %>%
+  mutate(v1v2_id_old = v1v2_id) %>%
+  left_join(no_meta, by = "v1v2_id_old") %>%
+  mutate(v1v2_id = case_when(!is.na(v1v2_new) ~ v1v2_new,
+                             is.na(v1v2_new) ~ v1v2_id)) %>%
+  left_join(meta_red, by =  "v1v2_id") %>%
+  filter(!is.na(month)) #remove v1v2_ids / samples without metadata
+
+joined
+
+```
+
+"joined" is the main dataset we will be working with here
+
+check how consistent sampling coverage is over time
+
+```{r}
+
+joined %>%
+  count(date, depth) %>%
+  select(-n) %>%
+  ggplot(aes(x = date, y = depth)) +
+  geom_point()
+
+# there is some empty spots in this plot because of the copies > 0 filtering above --> samples without plastid already excluded
+```
+
+
+```{r}
+
+# analysis focusses on 140m or shallower anyways -> subsetting the dataset further
+joined.140 <- joined %>%
+  # filter down to 140m or shallower
+  filter(nominal_depth <= 140) %>%
+  # only keep december 2016 (and consider it as 2017 (DM period of 2017). Remove the rest
+  mutate(year = as.character(year),
+         year = case_when(year == "2016" & month == "12" ~ "2017",
+                          TRUE ~ year)) %>%
+  filter(year != "2016") %>%
+  # also removing some columns no longer needed
+  select(-date, -time, -month, -date_time, -vert_zone, -plast_read_sample, -v1v2_id_old, -v1v2_new, -depth)
+
+joined.140
+
+##############################
+
+joined.300 <- joined %>%
+  # filter down to 140m or shallower
+  filter(nominal_depth <= 300) %>%
+  # only keep december 2016 (and consider it as 2017 (DM period of 2017). Remove the rest
+  mutate(year = as.character(year),
+         year = case_when(year == "2016" & month == "12" ~ "2017",
+                          TRUE ~ year)) %>%
+  filter(year != "2016") %>%
+  # also removing some columns no longer needed
+  select(-date, -time, -month, -date_time, -vert_zone, -plast_read_sample, -v1v2_id_old, -v1v2_new, -depth)
+
+joined.300
+
+```
+
+no removal of samples to selected dates (this is different from the initial idea of this analysis but was decided later)
+
+working with the dataset looking at the top 140m only (because of plastid %)
+
+```{r}
+
+# for a given year, in how many seasons was a sequence observed?
+seq_year_n_seasons <- joined.140 %>%
+  count(name, year, season) %>%
+  select(-n) %>%
+  count(name, year, name = "n_seasons") %>%
+  arrange(desc(n_seasons))
+
+joined.140.seasons <- joined.140 %>%
+  left_join(seq_year_n_seasons, by = c("name", "year")) %>%
+  mutate(n_seasons = case_when(n_seasons == 1 & season == 1 ~ "winter",
+                               n_seasons == 1 & season == 2 ~ "spring",
+                               n_seasons == 1 & season == 3 ~ "summer",
+                               n_seasons == 1 & season == 4 ~ "autumn",
+                               n_seasons == 2 ~ "2 seasons",
+                               n_seasons == 3 ~ "3 seasons",
+                               n_seasons == 4 ~ "4 seasons"),
+         n_seasons = factor(n_seasons, levels = c("spring","summer","autumn","winter","2 seasons","3 seasons","4 seasons")))
+
+#joined.140.seasons
+
+#################################
+
+seq_year_n_seasons_300 <- joined.300 %>%
+  count(name, year, season) %>%
+  select(-n) %>%
+  count(name, year, name = "n_seasons") %>%
+  arrange(desc(n_seasons))
+
+joined.300.seasons <- joined.300 %>%
+  left_join(seq_year_n_seasons_300, by = c("name", "year")) %>%
+  mutate(n_seasons = case_when(n_seasons == 1 & season == 1 ~ "winter",
+                               n_seasons == 1 & season == 2 ~ "spring",
+                               n_seasons == 1 & season == 3 ~ "summer",
+                               n_seasons == 1 & season == 4 ~ "autumn",
+                               n_seasons == 2 ~ "2 seasons",
+                               n_seasons == 3 ~ "3 seasons",
+                               n_seasons == 4 ~ "4 seasons"),
+         n_seasons = factor(n_seasons, levels = c("spring","summer","autumn","winter","2 seasons","3 seasons","4 seasons")))
+
+joined.300.seasons
+
+```
+
+doing frequence / abundance plot, including all 3 years, for prasinophytes
+
+```{r}
+
+labeldat <- joined.140.seasons %>%
+  count(year, n_seasons, name, wt = rel_plast_abund) %>%
+  add_count(year, n_seasons, name = "n_ASVs") %>%
+  count(year, n_seasons, n_ASVs) %>%
+  select(-n) %>%
+  arrange(n_seasons, year)
+
+### a specific subset, so to only label ASVs / datapoints above a certain relative abundance cutoff
+to_label <- joined.140.seasons %>%
+  filter(rel_plast_abund >= 10) %>%
+  mutate(spec = case_when(!is.na(viridi) ~ viridi),
+         label = paste0(name, "_", spec)) %>%
+  arrange(desc(rel_plast_abund))
+
+### building the actual plot
+joined.140.seasons %>%
+  #mutate(nominal_depth = factor(nominal_depth)) %>%
+  filter(viridi != "Omed",
+         #viridi != "PrasVIII",
+         viridi != "2ndaryPlastid") %>%
+  ggplot(aes(x = n_seasons, y = rel_plast_abund, color = year)) +
+  geom_boxplot(outlier.shape = NA, size=2) +
+  stat_summary(mapping = aes(y = 0),
+               geom = 'text',
+               label = labeldat$n_ASVs, 
+               vjust = 1.15, 
+               position = position_jitterdodge(jitter.width = 0),#with jitter.width, the points are centered
+               show.legend = FALSE) +
+  #instead of geom_jitter use this to split the colors / make them not overlay
+  geom_point(#data = joined.140.seasons,
+             aes(x = n_seasons,
+               y = rel_plast_abund,
+                color = year,
+               shape = as.character(nominal_depth)),
+             alpha = 0.5,
+             size = 2,
+             position = position_jitterdodge(jitter.width =0 )) +
+ geom_text(data = to_label,
+          aes(label = label, x = n_seasons, y = rel_plast_abund),
+          alpha = 0.5, position = position_jitterdodge(), 
+          hjust = 0.5, size = 1) +
+  ggtitle(label = NULL, subtitle = "2017-2019 - All casts") +
+  scale_x_discrete(name  = "\nseasons present") +
+  scale_y_continuous(limits = c(0,70),
+                     name = "relative abundance [% plastid]\n"
+                     ) +
+  #wes_palettes object has all wes anderson color pallets
+  scale_color_manual(name = "year",
+                     values = c("2017" = "#C6C6C5",
+                              "2018" = "#9C9B9B",
+                               "2019" = "#575756")) +
+  scale_shape_manual(name = "depth", values = c(1, 15, 17, 17, 17, 18, 2, 0, 16, 15)) +
+  theme_light() + 
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5),
+        panel.grid = element_blank())
+
+ggsave(filename = "reclassified_rel_abund_no_labels_gray_labeled.pdf", device = "pdf", width = 20, height = 10)
+```
+
+reproducing the upset plots
+
+```{r}
+joined.140.seasons.wide <- joined.140.seasons %>%
+  count(name, viridi, n_seasons, year) %>%
+  select(-n) %>%
+  mutate(n_seasons = as.character(n_seasons)) %>%
+  pivot_wider(values_from  = n_seasons, names_from = year)
+
+joined.140.2017 <- joined.140 %>%
+  filter(viridi != "Omed",
+         #viridi != "PrasVIII",
+         viridi != "2ndaryPlastid") %>%
+  filter(year == "2017") %>%
+  count(name, viridi, season) %>%
+  select(-n) %>%
+  mutate(season = case_when(season == 1 ~ "winter",
+                            season == 2 ~ "spring",
+                            season == 3 ~ "summer",
+                            season == 4 ~ "autumn")) %>%
+  pivot_wider(values_from = season, names_from = season) %>%
+  unite(x, c("winter", "spring", "summer", "autumn"), sep = ";", remove = TRUE, na.rm = TRUE) %>%
+  mutate(x = as.list(str_split(string = x, pattern = ";")),
+         viridi = factor(viridi)) %>%
+  rename(seqID = name, 
+         name =  x) %>%
+  ggplot(aes(x = name)) +
+  geom_bar(aes(fill = viridi)
+           #fill = wes_palette("Darjeeling1", 2)[2]
+           ) +
+  geom_text(stat = "count", aes(label = after_stat(count), vjust = -1, size=0.5)) +
+  scale_fill_manual(values = c("PrasVI_Pderma" = "#663333",
+                               "PrasVI_Pcoccus" = "#652528",
+                                "Other" = "#3A3A39",
+                               "PrasI" = "#952C30",
+                               "PrasIII" = "#B42C32",
+                               "PrasV" = "#E4032E",
+                               "VII_Chloroparvula" = "#DA672C",
+                               "PrasVII_CCMP1205" = "#F39300",
+                               "PrasIV" = "#F8B364",
+                               "PrasII_Crusto" = "#F0E651",
+                               "PrasII_Doli" = "#C5D200",
+                               "Bathy" = "#88C380",
+                               "OstreoII" = "#F190B9",
+                                "OstreoI" = "#ECD5DF",
+                               "PrasII_Mami" = "#B5A7CE",
+                               "PrasII_MicroA" = "#97CEEB",
+                               "PrasII_MicroABC" = "#F3F7FB",
+                               "PrasII_MicroE1" = "#80A5D3",
+                               "PrasII_MicroD" = "#D4E6F2",
+                               "PrasII_MicroCand2" = "#4A80BF",
+                               "PrasII_MicroCand1" = "#1A4A92"))+
+  scale_y_continuous(limits = c(0,50), name = "number of ASV") +
+  scale_x_upset() +
+  guides(size = "none") +
+  theme(axis.title = element_text(size = 14),
+        panel.grid = element_blank())+
+  theme_classic()
+
+joined.140.2017
+
+ggsave(filename = "2017_upset_reclassified_v2.pdf", plot= joined.140.2017, device = "pdf", width = 10, height = 5)
+
+```
+
+
+```{r}
+
+joined.140.2018 <- joined.140 %>%
+  filter(year == "2018") %>%
+  filter(viridi != "Omed",
+         #viridi != "PrasVIII",
+         viridi != "2ndaryPlastid") %>%
+  count(name, viridi, season) %>%
+  select(-n) %>%
+  mutate(season = case_when(season == 1 ~ "winter",
+                            season == 2 ~ "spring",
+                            season == 3 ~ "summer",
+                            season == 4 ~ "autumn")) %>%
+  pivot_wider(values_from = season, names_from = season) %>%
+  unite(x, c("winter", "spring", "summer", "autumn"), sep = ";", remove = TRUE, na.rm = TRUE) %>%
+  mutate(x = as.list(str_split(string = x, pattern = ";")),
+         viridi = factor(viridi)) %>%
+  rename(seqID = name, 
+         name =  x) %>%
+  ggplot(aes(x = name)) +
+  geom_bar(aes(fill = viridi)
+           #fill = wes_palette("Darjeeling1", 2)[2]
+           ) +
+  geom_text(stat = "count", aes(label = after_stat(count), vjust = -1, size=0.5)) +
+  scale_fill_manual(values = c("PrasVI_Pderma" = "#663333",
+                               "PrasVI_Pcoccus" = "#652528",
+                                "Other" = "#3A3A39",
+                               "PrasI" = "#952C30",
+                               "PrasIII" = "#B42C32",
+                               "PrasV" = "#E4032E",
+                               "VII_Chloroparvula" = "#DA672C",
+                               "PrasVII_CCMP1205" = "#F39300",
+                               "PrasIV" = "#F8B364",
+                               "PrasII_Crusto" = "#F0E651",
+                               "PrasII_Doli" = "#C5D200",
+                               "Bathy" = "#88C380",
+                               "OstreoII" = "#F190B9",
+                                "OstreoI" = "#ECD5DF",
+                               "PrasII_Mami" = "#B5A7CE",
+                               "PrasII_MicroA" = "#97CEEB",
+                               "PrasII_MicroABC" = "#F3F7FB",
+                               "PrasII_MicroE1" = "#80A5D3",
+                               "PrasII_MicroD" = "#D4E6F2",
+                               "PrasII_MicroCand2" = "#4A80BF",
+                               "PrasII_MicroCand1" = "#1A4A92"))+
+  scale_y_continuous(limits = c(0,50), name = "number of ASV") +
+  scale_x_upset() +
+  guides(size = "none") +
+  theme(axis.title = element_text(size = 14),
+        panel.grid = element_blank()) +
+  theme_classic()
+
+joined.140.2018
+
+ggsave(filename = "2018_upset_reclassified_v2.pdf", plot= joined.140.2018, device = "pdf", width = 10, height = 5)
+```
+
+```{r}
+
+joined.140.2019 <- joined.140 %>%
+  filter(viridi != "Omed",
+         #viridi != "PrasVIII",
+         viridi != "2ndaryPlastid") %>%
+  filter(year == "2019") %>%
+  count(name, viridi, season) %>%
+  select(-n) %>%
+  mutate(season = case_when(season == 1 ~ "winter",
+                            season == 2 ~ "spring",
+                            season == 3 ~ "summer",
+                            season == 4 ~ "autumn")) %>%
+  pivot_wider(values_from = season, names_from = season) %>%
+  unite(x, c("winter", "spring", "summer", "autumn"), sep = ";", remove = TRUE, na.rm = TRUE) %>%
+  mutate(x = as.list(str_split(string = x, pattern = ";")),
+         viridi = factor(viridi)) %>%
+  rename(seqID = name, 
+         name = x) %>%
+  ggplot(aes(x = name)) +
+  geom_bar(aes(fill = viridi)
+           #fill = wes_palette("Darjeeling1", 2)[2]
+           ) +
+  geom_text(stat = "count", aes(label = after_stat(count), vjust = -1, size=0.5)) +
+scale_fill_manual(values = c("PrasVI_Pderma" = "#663333",
+                               "PrasVI_Pcoccus" = "#652528",
+                                "Other" = "#3A3A39",
+                               "PrasI" = "#952C30",
+                               "PrasIII" = "#B42C32",
+                               "PrasV" = "#E4032E",
+                               "VII_Chloroparvula" = "#DA672C",
+                               "PrasVII_CCMP1205" = "#F39300",
+                               "PrasIV" = "#F8B364",
+                               "PrasII_Crusto" = "#F0E651",
+                               "PrasII_Doli" = "#C5D200",
+                               "Bathy" = "#88C380",
+                               "OstreoII" = "#F190B9",
+                                "OstreoI" = "#ECD5DF",
+                               "PrasII_Mami" = "#B5A7CE",
+                               "PrasII_MicroA" = "#97CEEB",
+                               "PrasII_MicroABC" = "#F3F7FB",
+                               "PrasII_MicroE1" = "#80A5D3",
+                               "PrasII_MicroD" = "#D4E6F2",
+                               "PrasII_MicroCand2" = "#4A80BF",
+                               "PrasII_MicroCand1" = "#1A4A92"))+
+  scale_y_continuous(limits = c(0,50), name = "number of ASV") +
+  scale_x_upset() +
+  guides(size = "none") +
+  theme(axis.title = element_text(size = 14),
+        panel.grid = element_blank())+
+  theme_classic()
+
+joined.140.2019
+
+ggsave(filename = "2019_upset_reclassified_v2.pdf", plot= joined.140.2019, device = "pdf", width = 10, height = 5)
+
+```
+
+```{r}
+
+seqyear <- joined.140 %>%
+  count(name, year) %>%
+  select(-n)
+
+#seqyear
+
+venn_full <- list(
+  year2017 = seqyear %>% filter(year == "2017") %>% pull(name),
+  year2018 = seqyear %>% filter(year == "2018") %>% pull(name),
+  year2019 = seqyear %>% filter(year == "2019") %>% pull(name)
+)
+
+venn_full <- ggvenn::ggvenn(venn_full, fill_color = wes_palette("Darjeeling1",4)[1:3], fill_alpha = 0.5, text_size = 4)
+
+venn_full %>%
+ggsave(filename = "venn_prasino_full_reclassified_v2.pdf", device = "pdf")
+
+venn_full
+
+```
+
+```{r}
+
+seqyear.summer <- joined.140 %>% 
+  count(name, year, season) %>%
+  select(-n) %>%
+  add_count(name, year, name = "n_seasons") %>%
+  filter(season == 3 & n_seasons == 1) %>%
+  select(name, year)
+  
+#seqyear.summer
+
+#how many ASVs are found in only summer across years?
+seqyear.summer_uniq <- unique(seqyear.summer$name)
+length(seqyear.summer_uniq)
+#answer: 60, but this inlcudes e.g., an ASV found only in summer in one year that could be found in other mixing periods in another
+
+venn_summer <- list(
+  year2017 = seqyear.summer %>% filter(year == "2017") %>% pull(name),
+  year2018 = seqyear.summer %>% filter(year == "2018") %>% pull(name),
+  year2019 = seqyear.summer %>% filter(year == "2019") %>% pull(name)
+)
+
+#ggVennDiagram(venn_full, set_color = "black", label_alpha = 0)
+
+venn_summer <- ggvenn::ggvenn(venn_summer, fill_color = wes_palette("Darjeeling1",4)[1:3], fill_alpha = 0.5, text_size = 4)
+
+venn_summer %>%
+  ggsave(filename = "venn_prasino_summer_only.pdf", device = "pdf")
+
+venn_summer
+
+```
+
+looking at the whole summer community, not jsut the JUST summer community of each year:
+
+```{r}
+seqyear.summer_all <- joined.140 %>% 
+  count(name, year, season) %>%
+  select(-n) %>%
+  add_count(name, year, name = "n_seasons") %>%
+  filter(season == 3) %>%
+  select(name, year)
+  
+#seqyear.summer_all
+
+#how many ASVs are found in any summer across years?
+seqyear.summer_all_uniq <- unique(seqyear.summer_all$name)
+length(seqyear.summer_all_uniq)
+#answer: 74
+
+venn_summer_all <- list(
+  year2017 = seqyear.summer_all %>% filter(year == "2017") %>% pull(name),
+  year2018 = seqyear.summer_all %>% filter(year == "2018") %>% pull(name),
+  year2019 = seqyear.summer_all %>% filter(year == "2019") %>% pull(name)
+)
+
+venn_summer_all <- ggvenn::ggvenn(venn_summer_all, 
+                                  fill_color = wes_palette("Darjeeling1",4)[1:3], fill_alpha = 0.5, text_size = 4)
+
+venn_summer %>%
+  ggsave(filename = "venn_prasino_summer_all.pdf", device = "pdf")
+
+venn_summer_all 
+```
+
+
+```{r}
+#what about ASVs unique to other mixing periods? ASVs unique to autumn across all years
+seqyear.autumn.only.across.years <- joined.140 %>% 
+  count(name, season) %>%
+  select(-n) %>%
+  add_count(name, name = "n_seasons") %>%
+  filter(season == 4 & n_seasons == 1) %>%
+  select(name)
+
+#ASVs found in autumn in any year
+seqyear.autumn.any.across.years <- joined.140 %>% 
+  count(name, season) %>%
+  select(-n) %>%
+  add_count(name, name = "n_seasons") %>%
+  filter(season == 4) %>%
+  select(name)
+
+#the rel abund of ASVs found in autumn only
+
+autumn_only_abund <- joined.140 %>%
+  filter(name %in% seqyear.autumn.only.across.years$name)
+
+highest_abund_autumn_only <- autumn_only_abund %>% group_by(name) %>% slice(which.max(rel_plast_abund))
+
+#ASVs unique to spring across all years
+
+seqyear.spring.only.across.years <- joined.140 %>% 
+  count(name, season) %>%
+  select(-n) %>%
+  add_count(name, name = "n_seasons") %>%
+  filter(season == 2 & n_seasons == 1) %>%
+  select(name)
+
+#ASVs found in spring in any year
+
+seqyear.spring.any.across.years <- joined.140 %>% 
+  count(name, season) %>%
+  select(-n) %>%
+  add_count(name, name = "n_seasons") %>%
+  filter(season == 2) %>%
+  select(name)
+
+#the rel abund of ASVs found in spring only
+
+spring_only_abund <- joined.140 %>%
+  filter(name %in% seqyear.spring.only.across.years$name)
+
+highest_abund_spring_only <- spring_only_abund %>% group_by(name) %>% slice(which.max(rel_plast_abund))
+
+#same but for DM
+
+seqyear.dm.only.across.years <- joined.140 %>% 
+  count(name, season) %>%
+  select(-n) %>%
+  add_count(name, name = "n_seasons") %>%
+  filter(season == 1 & n_seasons == 1) %>%
+  select(name)
+
+seqyear.dm.any.across.years <- joined.140 %>% 
+  count(name, season) %>%
+  select(-n) %>%
+  add_count(name, name = "n_seasons") %>%
+  filter(season == 1) %>%
+  select(name)
+
+dm_only_abund <- joined.140 %>%
+  filter(name %in% seqyear.dm.only.across.years$name)
+
+highest_abund_dm_only <- dm_only_abund %>% group_by(name) %>% slice(which.max(rel_plast_abund))
+
+```
+
+
+```{r}
+#before it was just those found in summer only in at least one year (but could be found other places in other years). now it's across years summer only
+
+seqyear.summer.only.across.years <- joined.140 %>% 
+  count(name, season) %>%
+  select(-n) %>%
+  add_count(name, name = "n_seasons") %>%
+  filter(season == 3 & n_seasons == 1) %>%
+  select(name)
+
+#get the ephemeral ASVs unique to SS across years
+seqyear.summer.only.across.years_uniq <- (seqyear.summer.only.across.years$name)
+
+length(seqyear.summer.only.across.years_uniq)
+#answer: 43, except outside of 140m, seq2347 is found in season 1
+
+#those found at surface only
+seqyear.summer.only.across.years.surface <- joined.140 %>% 
+  filter(nominal_depth ==1) %>%
+  count(name, season) %>%
+  select(-n) %>%
+  add_count(name, name = "n_seasons") %>%
+  filter(season == 3 & n_seasons == 1) %>%
+  select(name)
+
+#get the ephemeral ASVs unique to SS, the top 10 with respect to relative abundance
+
+
+summer_only_abund <- joined.140 %>%
+  filter(name %in% seqyear.summer.only.across.years$name, season == 3)
+
+highest_abund_summer_only <- summer_only_abund %>% group_by(name) %>% slice(which.max(rel_plast_abund))
+
+#and for completeness's sake, what about 2016?
+
+joined.140.2016 <- joined %>%
+  # filter down to 140m or shallower
+  filter(nominal_depth <= 140) %>%
+  # only keep december 2016 (and consider it as 2017 (DM period of 2017). Remove the rest
+  mutate(year = as.character(year),
+         year = case_when(year == "2016" & month == "12" ~ "2017",
+                          TRUE ~ year)) %>%
+  # also removing some columns no longer needed
+  select(-date, -time, -month, -date_time, -vert_zone, -plast_read_sample, -v1v2_id_old, -v1v2_new, -depth)
+
+#ASVs unique to summer 2016 
+
+seqyear.summer.only.2016 <- joined.140.2016 %>% 
+  count(name, season) %>%
+  select(-n) %>%
+  add_count(name, name = "n_seasons") %>%
+  filter(season == 3 & n_seasons == 1) %>%
+  select(name)
+
+```
+
+
+```{r}
+#these are the ones found in all summers not necessarily exclusive to summer
+
+summeroverlap <- seqyear.summer_all %>%
+  count(name) %>%
+  filter(n == 3)
+
+#summeroverlap
+
+summeroverlap_abund <- joined.140 %>%
+  filter(name %in% summeroverlap$name,
+         season == 3)
+
+#max rel abund of these ASVs
+
+highest_summeroverlap_abund <- summeroverlap_abund %>% group_by(name) %>% slice(which.max(rel_plast_abund))
+
+#max rel abund of these ASVs found at DCM
+
+summeroverlap_abund_dcm <- summeroverlap_abund %>%
+  filter(nominal_depth %in% c(80, 95, 100, 115, 120))
+
+summeroverlap_dcm_asvs <- data.frame(unique(summeroverlap_abund_dcm$name))
+
+highest_summeroverlap_abund_dcm <- summeroverlap_abund_dcm %>% group_by(name) %>% slice(which.max(rel_plast_abund))
+
+#max rel abund of these ASVs found at surface
+
+summeroverlap_abund_surface <- summeroverlap_abund %>%
+  filter(nominal_depth %in% c(1))
+
+highest_summeroverlap_abund_surface <- summeroverlap_abund_surface %>% group_by(name) %>% slice(which.max(rel_plast_abund))
+
+summeroverlap_surface_asvs <- data.frame(unique(summeroverlap_abund_surface$name))
+
+#max rel abund of these ASVs found at 40 m
+
+summeroverlap_abund_40m <- summeroverlap_abund %>%
+  filter(nominal_depth %in% c(40))
+
+highest_summeroverlap_abund_40m <- summeroverlap_abund_40m %>% group_by(name) %>% slice(which.max(rel_plast_abund))
+
+summeroverlap_40m_asvs <- data.frame(unique(summeroverlap_abund_40m$name))
+
+#max rel abund of these ASVs found at upper photic zone
+
+summeroverlap_abund_upperphotic <- summeroverlap_abund %>%
+  filter(nominal_depth %in% c(1,40))
+
+highest_summeroverlap_abund_upperphotic <- summeroverlap_abund_upperphotic %>% group_by(name) %>% slice(which.max(rel_plast_abund))
+
+summeroverlap_upperphotic_asvs <- data.frame(unique(summeroverlap_abund_upperphotic$name))
+
+#which ASVs in ALL summers only at DCM and not upper photic?
+
+summeroverlap_dcm_only <- summeroverlap_dcm_asvs %>%
+  filter(unique.summeroverlap_abund_dcm.name. %notin% summeroverlap_upperphotic_asvs$unique.summeroverlap_abund_upperphotic.name.)
+
+#which ASVs in ALL summers only at upper photic and not DCM?
+
+summeroverlap_upperphotic_only <- summeroverlap_upperphotic_asvs %>%
+  filter(unique.summeroverlap_abund_upperphotic.name. %notin% summeroverlap_dcm_asvs$unique.summeroverlap_abund_dcm.name.)
+
+#the avg. percent of summeroverlap ASVs' combined cotribution to plastids
+
+summeroverlap_abund_mean <- joined.140 %>%
+  filter(name %in% summeroverlap$name,
+         season == 3) %>%
+  count(v1v2_id, nominal_depth, wt = rel_plast_abund) %>%
+  group_by(nominal_depth) %>%
+  summarise(mean = mean(n), sd = sd(n)) %>%
+  arrange(desc(nominal_depth))
+
+summeroverlap_abund_mean2 <- joined.140 %>%
+    filter(name %in% summeroverlap$name,
+         season == 3) %>%
+    mutate(nominal_depth = factor(nominal_depth)) %>%
+    group_by(v1v2_id, nominal_depth) %>%
+    summarise(sum = sum(rel_plast_abund),
+              .groups = "drop") %>%
+    group_by(nominal_depth) %>%
+    summarise(mean = mean(sum),
+              .groups = "drop")
+
+summeroverlap_abund_mean_asvs <- joined.140 %>%
+    filter(name %in% summeroverlap$name,
+         season == 3) %>%
+    mutate(nominal_depth = factor(nominal_depth)) %>%
+    group_by(name, v1v2_id, nominal_depth) %>%
+    summarise(sum = sum(rel_plast_abund),
+              .groups = "drop") %>%
+    group_by(name, nominal_depth) %>%
+    summarise(mean = mean(sum),
+              .groups = "drop")
+#the max percent of summeroverlap ASVs' combined cotribution to plastids
+
+summeroverlap_abund_max <- joined.140 %>%
+  filter(name %in% summeroverlap$name,
+         season == 3) %>%
+  count(v1v2_id, nominal_depth, wt = rel_plast_abund) %>%
+  group_by(nominal_depth) %>%
+  summarise(max = max(n)) %>%
+  arrange(desc(nominal_depth))
+
+```
+
+visualize relative abundance as a function of depth (panels per depths) and in how many/what years the sequences were found
+
+```{r}
+
+mean_rel_per_depth <- joined.140 %>%
+  filter(season == 3) %>%
+  mutate(nominal_depth = factor(nominal_depth)) %>%
+  group_by(name, v1v2_id, nominal_depth) %>%
+  summarise(sum = sum(rel_plast_abund),
+            .groups = "drop") %>%
+  group_by(name, nominal_depth) %>%
+  summarise(mean = mean(sum),
+            .groups = "drop")
+  
+years_present <- joined.140 %>%
+  filter(season == 3) %>%
+  count(viridi, name, year) %>%
+  select(-n) %>%
+  pivot_wider(values_from = year, names_from = year) %>%
+  relocate(viridi, name, `2017`, `2018`, `2019`) %>%
+  unite(x, c("2017", "2018", "2019"), sep = ";", remove = TRUE, na.rm = TRUE) %>%
+  mutate(#x = str_split(string = x, pattern = ";"),
+         viridi = factor(viridi))
+
+mean_rel_per_depth %>%
+  left_join(years_present, by = "name") %>%
+  filter(nominal_depth %in% c(1,40,80,120)) %>%
+  rename(seqID = name, 
+         name = x) %>%
+  mutate(name = factor(name, levels = c("2017;2018;2019", "2017;2019", "2017;2018", "2018;2019", "2017", "2018", "2019"))) %>%
+  group_by(nominal_depth, name) %>%
+  summarise(mean = sum(mean),
+            .groups = "drop") %>%
+  ggplot(aes(x = name, y = mean)) +
+  geom_col(
+    aes(fill = name)
+    ) +
+  scale_fill_manual(values = c("2017;2018;2019" = "#BA9241", 
+                               "2017;2019" = "#F58E44", 
+                               "2017;2018" = "#87887C", 
+                               "2018;2019" = "#BAB261",
+                               "2017" = "#FD7F82", 
+                               "2018" = "#88C8BB", 
+                               "2019" = "#F6CE83"),
+                    name = "present in summer") +
+  scale_y_continuous(name = "relative abundance [% plastid]\n",
+                     breaks = c(0,25,50), limits = c(0, 60),
+                     expand = c(0,.1)) +
+  facet_wrap(~nominal_depth) +
+  theme_light() + 
+  theme(panel.grid = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank())
+
+ggsave(filename = "all_summer_by_depth_v2.pdf", device = "pdf", width = 10, height = 5)
+```
+
+looking at the transition of euks in the deeper photic zone / DCM
+
+```{r}
+
+# joined.140 %>%
+#   filter(season == 3) %>%
+#   group_by(name, nominal_depth) %>%
+#   summarise(rel_abund = mean(rel_plast_abund),
+#             .groups = "drop") %>%
+#   mutate(name = factor(name),
+#          name = fct_lump(f = name, n = 25, w = rel_abund),
+#          nominal_depth = factor(nominal_depth)) %>%
+#   group_by(name, nominal_depth) %>%
+#   summarise(sum = sum(rel_abund), .groups = "drop") %>%
+#   ggplot(aes(y = sum, x = nominal_depth)) +
+#   geom_col(aes(fill = name), position = "fill")
+
+```
+
+how much do the 20 summeroverlap asvs make up of DCM relative plastid abundance
+
+```{r}
+
+# joined.140 %>%
+#   mutate(rel_to_dcm = nominal_depth - dcm) %>%
+#   filter(season == 3,
+#          nominal_depth > 75,
+#          abs(rel_to_dcm) < 25,
+#          name %in% summeroverlap$name) %>%
+#   count(v1v2_id, rel_to_dcm, wt = rel_plast_abund, name = "sum_summerover") %>%
+#   ggplot(aes(x = sum_summerover, y = rel_to_dcm)) +
+#   geom_point() +
+#   scale_y_reverse(limits = c(25,-25)) +
+#   scale_x_continuous()
+
+# -> cannot really see a strong trend outright
+```
+
+```{r}
+
+# joined.140 %>%
+#   select(-nominal_depth, -year) %>%
+#   mutate(rel_to_dcm = depth - dcm) %>%
+#   filter(season == 3,
+#          #depth > 75,
+#          abs(rel_to_dcm) < 25,
+#          name %in% summeroverlap$name) %>%
+#   mutate(fct_rel_to_dcm = cut(x = rel_to_dcm, seq(-25,25,5))) %>%
+#   group_by(v1v2_id, viridi, fct_rel_to_dcm) %>%
+#   summarise(sum = sum(rel_plast_abund),
+#             .groups = "drop") %>%
+#   group_by(viridi, fct_rel_to_dcm) %>%
+#   summarise(mean = mean(sum),
+#             .groups = "drop") %>%
+#   mutate(fct_rel_to_dcm = fct_rev(fct_rel_to_dcm)) %>%
+#   ggplot(aes(x = mean, y = fct_rel_to_dcm, fill = viridi)) +
+#   geom_col(position = "fill") +
+#   scale_y_discrete(expand = c(0,0),
+#                    name = "depth relative to DCM [m]") +
+#   scale_x_continuous(expand = c(0,0),
+#                      name = "relative abundance [% prasino]",
+#                      labels = function(x) x * 100) +
+#   scale_fill_manual(values = brewer.pal(7, "Accent")) +
+#   theme_light() +
+#   theme(panel.grid = element_blank())
+
+```
+
+
+```{r}
+
+# joined.140 %>%
+#   select(v1v2_id, viridi, year, name, season, nominal_depth, rel_plast_abund) %>%
+#   write_tsv("~/Desktop/20220118-plastid_relative_abundance_prasinophytes.tsv")
+
+```
+
+```{r}
+mean_rel_per_depth <- joined.140 %>%
+  filter(season == 3) %>%
+  mutate(nominal_depth = factor(nominal_depth)) %>%
+  group_by(name, v1v2_id, nominal_depth) %>%
+  summarise(sum = sum(rel_plast_abund),
+            .groups = "drop") %>%
+  group_by(name, nominal_depth) %>%
+  summarise(mean = mean(sum),
+            .groups = "drop")
+  
+years_present <- joined.140 %>%
+  filter(season == 3) %>%
+  count(viridi, name, year) %>%
+  select(-n) %>%
+  pivot_wider(values_from = year, names_from = year) %>%
+  relocate(viridi, name, `2017`, `2018`, `2019`) %>%
+  unite(x, c("2017", "2018", "2019"), sep = ";", remove = TRUE, na.rm = TRUE) %>%
+  mutate(#x = str_split(string = x, pattern = ";"),
+         viridi = factor(viridi))
+
+bar <- mean_rel_per_depth %>%
+  left_join(years_present, by = "name") %>%
+  filter(nominal_depth %in% c(1,40,80,120)) %>%
+  rename(seqID = name, 
+         name = x) %>%
+  mutate(name = factor(name, levels = c("2017;2018;2019", "2017;2019", "2017;2018", "2018;2019", "2017", "2018", "2019"))) %>%
+  group_by(nominal_depth, name, viridi) %>%
+  summarise(mean = sum(mean),
+            .groups = "drop") %>%
+  filter(viridi != "Omed",
+         #viridi != "PrasVIII",
+         viridi != "2ndaryPlastid") %>%
+  ggplot(aes(x = name, y = mean)) +
+  geom_col(
+    aes(fill = viridi)
+    ) +
+  scale_fill_manual(values = c("PrasVI_Pderma" = "#663333",
+                               "PrasVI_Pcoccus" = "#652528",
+                                "Other" = "#3A3A39",
+                               "PrasI" = "#952C30",
+                               "PrasIII" = "#B42C32",
+                               "PrasV" = "#E4032E",
+                               "VII_Chloroparvula" = "#DA672C",
+                               "PrasVII_CCMP1205" = "#F39300",
+                               "PrasIV" = "#F8B364",
+                               "PrasII_Crusto" = "#F0E651",
+                               "PrasII_Doli" = "#C5D200",
+                               "Bathy" = "#88C380",
+                               "OstreoII" = "#F190B9",
+                                "OstreoI" = "#ECD5DF",
+                               "PrasII_Mami" = "#B5A7CE",
+                               "PrasII_MicroA" = "#97CEEB",
+                               "PrasII_MicroABC" = "#F3F7FB",
+                               "PrasII_MicroE1" = "#80A5D3",
+                               "PrasII_MicroD" = "#D4E6F2",
+                               "PrasII_MicroCand2" = "#4A80BF",
+                               "PrasII_MicroCand1" = "#1A4A92"),
+                   name = "present in summer") +
+  scale_y_continuous(name = "relative abundance [% plastid]\n",
+                     breaks = c(0,25,50), limits = c(0, 60),
+                     expand = c(0,.1)) +
+  facet_wrap(~nominal_depth) +
+  theme_light() + 
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        strip.background = element_rect(fill = "white", color = "black"),
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_text(angle = 90,hjust = 1),
+        axis.title.x = element_blank())
+
+bar
+
+ggsave(filename = "all_summer_by_depth_and_tax_v2.pdf", device = "pdf", width = 10, height = 5)
+```
+

@@ -1,0 +1,216 @@
+---
+title: "cand2 calculations"
+author: "charlotte"
+date: "9/15/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readxl)
+library(ggplot2)
+library(dplyr)
+
+#logical arguments
+`%notin%` <- Negate(`%in%`)
+
+round_any = function(x, accuracy, f=round){f(x/ accuracy) * accuracy}
+#thanks to Holger Brandl from stackoverview for this plyr workaround!
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+archeaplastida <- read_excel("/Users/ceckmann/Desktop/bats_2016_2019/data_from_Leo/archeaplastida.xlsx",sheet = 1)
+
+#keep just the count data and species name
+
+archeaplastida = select(archeaplastida, -Representative_Sequence, -Fasta, -total, -Kingdom, -Clade, -Phylum, -Class, -Order, -Family, -Genera) 
+
+archeaplastida <- archeaplastida %>%
+ pivot_longer(cols = `10321_1`:`NS_40117`,
+              names_to = "V4_ID", values_to = "copies")
+
+#Keep just micromonas sequences
+
+micromonas_only <- archeaplastida %>% filter (Species %in% c("Micromonas_Clade-A.ABC.1-2(100)", "Micromonas_Clade-A.ABC.1-2(81)", "Micromonas_Clade-A.ABC.1-2(82)", "Micromonas_Clade-A.ABC.1-2(84)", "Micromonas_Clade-A.ABC.1-2(85)", "Micromonas_Clade-A.ABC.1-2(86)", "Micromonas_Clade-A.ABC.1-2(87)", "Micromonas_Clade-A.ABC.1-2(88)", "Micromonas_Clade-A.ABC.1-2(89)", "Micromonas_Clade-A.ABC.1-2(90)", "Micromonas_Clade-A.ABC.1-2(91)", "Micromonas_Clade-A.ABC.1-2(93)", "Micromonas_Clade-A.ABC.1-2(94)", "Micromonas_Clade-A.ABC.1-2(96)", "Micromonas_Clade-A.ABC.1-2(97)", "Micromonas_Clade-A.ABC.1-2(98)", "Micromonas_Clade-A.ABC.1-2(99)", "Micromonas_Clade-B_lagoon-and-innerseas(100)", "Micromonas_Clade-B_lagoon-and-innerseas(98)", "Micromonas_Clade-B..4(100)", "Micromonas_Clade-B..4(99)", "Micromonas_Clade-B.E.3(100)", "Micromonas_Clade-B.E.3(91)", "Micromonas_Clade-B.E.3(93)", "Micromonas_Clade-B.E.3(94)", "Micromonas_Clade-B.E.3(95)", "Micromonas_Clade-B.E.3(98)", "Micromonas_Clade-B.E.3(99)", "Micromonas_pusilla-Clade-C.D.5(100)", "Micromonas_unclassified(100)", "Micromonas_unclassified(84)", "Micromonas_unclassified(85)", "Micromonas_unclassified(87)", "Micromonas_unclassified(88)", "Micromonas_unclassified(90)", "Micromonas_unclassified(91)", "Micromonas_unclassified(93)", "Micromonas_unclassified(94)", "Micromonas_unclassified(95)", "Micromonas_unclassified(96)", "Micromonas_unclassified(98)")) %>% 
+  add_count(V4_ID, wt = copies, name = "total_micromonas_sample") 
+
+micromonas_only <- micromonas_only %>% filter (Species %in% c( "Micromonas_Clade-B_lagoon-and-innerseas(100)", "Micromonas_Clade-B_lagoon-and-innerseas(98)")) %>% 
+  add_count(V4_ID, wt = copies, name = "total_cand2_sample") 
+
+micromonas_only2 <- micromonas_only[!duplicated(micromonas_only), ]
+
+micromonas_only2 = select(micromonas_only2, -Species) 
+
+micromonas_only2$percent_cand2_micromonas <- (micromonas_only2$total_cand2_sample/micromonas_only2$total_micromonas_sample)
+
+#match to metadata
+
+metadata_ciliates <- read_excel("/Users/ceckmann/Desktop/bats_2016_2019/data_from_Leo/metadata_ciliates.xlsx",sheet = 2)
+
+colnames(metadata_ciliates)[1] ="V4_ID"
+
+colnames(metadata_ciliates)[3] ="decy"
+
+colnames(metadata_ciliates)[10] ="Nominal_Depth"
+
+micromonas_only2_metadata_ciliates <- merge(micromonas_only2, metadata_ciliates, by="V4_ID")
+
+micromonas_only2_metadata_ciliates <- micromonas_only2_metadata_ciliates[!duplicated(micromonas_only2_metadata_ciliates$V4_ID), ]
+
+#round decy so it matches v1v2 metadata
+
+micromonas_only2_metadata_ciliates$decy  <- round_any(micromonas_only2_metadata_ciliates$decy, 0.01)
+
+#choose only 300 m and shallower
+
+micromonas_only2_metadata_ciliates <- micromonas_only2_metadata_ciliates[micromonas_only2_metadata_ciliates$Nominal_Depth <= 300,]
+
+#Now for 16S data
+
+v1v2_feature <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/og_data_Fabian/feature_table_taxPA.tsv") %>%
+ pivot_longer(cols = `C4_1_S25`:`BS.96b_S152`,
+              names_to = "Sample", values_to = "copies") 
+
+false_prasinos <- read.csv("/Users/ceckmann/Desktop/bats_2016_2019/assignments/PA_blast_comparisons/false_prasinos.csv")
+
+v1v2_micromonas_only <- v1v2_feature %>% filter(!is.na(name), name %notin% false_prasinos$name)%>%
+filter (!is.na(viridi), viridi %in% c("PrasII_Mam_Mant_Mic", "PrasII_Mant_Mic", "PrasII_MicroABC", "PrasII_MicroE2")) %>% 
+  add_count(Sample, wt = copies, name = "total_micromonas_sample_v1v2")
+
+v1v2_micromonas_only <- v1v2_micromonas_only %>% filter (name %in% c( "seq1156")) %>%  add_count(Sample, wt = copies, name = "total_seq1156_sample") 
+
+v1v2_micromonas_only$percent_seq1156_micromonas <- (v1v2_micromonas_only$total_seq1156_sample/v1v2_micromonas_only$total_micromonas_sample_v1v2)
+
+v1v2_micromonas_only <- v1v2_micromonas_only %>% mutate(Sample = gsub("X1","1",Sample), Sample = gsub("\\.","_",Sample), Sample = gsub("BS183_S21","BS_183_S21",Sample), Sample = gsub("BS184_S22","BS_184_S22",Sample), Sample = gsub("BS185_S23","BS_185_S23",Sample),  Sample = gsub("BS186_S24","BS_186_S24",Sample),  Sample = gsub("BS187_S25","BS_187_S25",Sample),  Sample = gsub("BS188_S26","BS_188_S26",Sample),  Sample = gsub("BS189_S27","BS_189_S27",Sample),  Sample = gsub("BS190_S28","BS_190_S28",Sample),  Sample = gsub("BS191_S29","BS_191_S29",Sample),  Sample = gsub("BS192_S30","BS_192_S30",Sample),  Sample = gsub("BS193_S31","BS_193_S31",Sample),  Sample = gsub("BS194_S32","BS_194_S32",Sample),  Sample = gsub("BS195_S33","BS_195_S33",Sample),  Sample = gsub("BS196_S34","BS_196_S34",Sample),  Sample = gsub("BS197_S35","BS_197_S35",Sample), Sample = gsub("BS198_S36","BS_198_S36",Sample),  Sample = gsub("BS199_S37","BS_199_S37",Sample), Sample = gsub("BS200_S38","BS_200_S38",Sample), Sample = gsub("BS201_S39","BS_201_S39",Sample),  Sample = gsub("BS202_S40","BS_202_S40",Sample),  Sample = gsub("BS203_S41","BS_203_S41",Sample), Sample = gsub("BS204_S42","BS_204_S42",Sample),  Sample = gsub("BS205_S43","BS_205_S43",Sample),  Sample = gsub("BS206_S44","BS_206_S44",Sample),  Sample = gsub("BS207_S45","BS_207_S45",Sample), Sample =
+gsub("BS208_S46","BS_208_S46",Sample),  Sample = gsub("BS209_S47","BS_209_S47",Sample), Sample =            gsub("BS210_S48","BS_210_S48",Sample),  Sample = gsub("BS211_S49","BS_211_S49",Sample), Sample =            gsub("BS212_S50","BS_212_S50",Sample),  Sample = gsub("BS213_S51","BS_213_S51",Sample), Sample =            gsub("BS214_S52","BS_214_S52",Sample),  Sample = gsub("BS215_S53","BS_215_S53",Sample), Sample =            gsub("BS216_S54","BS_216_S54",Sample),  Sample = gsub("BS217_S55","BS_217_S55",Sample), Sample =   
+gsub("BS218_S56","BS_218_S56",Sample),  Sample = gsub("BS219_S57","BS_219_S57",Sample), Sample =            gsub("BS220_S58","BS_220_S58",Sample),  Sample = gsub("BS221_S59","BS_221_S59",Sample), Sample =            gsub("BS222_S60","BS_222_S60",Sample),  Sample = gsub("BS223_S61","BS_223_S61",Sample), Sample =            gsub("BS224_S62","BS_224_S62",Sample),  Sample = gsub("BS225_S63","BS_225_S63",Sample), 
+Sample = gsub("BS226_S64","BS_226_S64",Sample),
+gsub("BS227_S65","BS_227_S65",Sample),  Sample = gsub("BS228_S66","BS_228_S66",Sample),  Sample = gsub("BS229_S67","BS_229_S67",Sample),  Sample =
+gsub("BS230_S68","BS_230_S68",Sample),  Sample = gsub("BS231_S69","BS_231_S69",Sample),  Sample = gsub("BS232_S70","BS_232_S70",Sample),  Sample =
+gsub("BS233_S71","BS_233_S71",Sample),  Sample = gsub("BS234_S72","BS_234_S72",Sample),  Sample = gsub("BS235_S73","BS_235_S73",Sample),  Sample =
+gsub("BS236_S74","BS_236_S74",Sample),  Sample = gsub("BS237_S75","BS_237_S75",Sample),  Sample = gsub("BS238_S76","BS_238_S76",Sample),  Sample =
+gsub("BS239_S77","BS_239_S77",Sample),  Sample = gsub("BS240_S78","BS_240_S78",Sample),  Sample = gsub("BS241_S79","BS_241_S79",Sample),  Sample = 
+gsub("BS242_S80","BS_242_S80",Sample),  Sample = gsub("BS243_S81","BS_243_S81",Sample),  Sample = gsub("BS244_S82","BS_244_S82",Sample),  Sample =   
+gsub("BS245_S83","BS_245_S83",Sample),  Sample = gsub("BS246_S84","BS_246_S84",Sample),
+gsub("BS247_S85","BS_247_S85",Sample),  Sample = gsub("BS248_S86","BS_248_S86",Sample),  Sample = gsub("BS249_S87","BS_249_S87",Sample), Sample =
+gsub("BS250_S88","BS_250_S88",Sample),  Sample = gsub("BS251_S89","BS_251_S89",Sample),  Sample = gsub("BS252_S90","BS_252_S90",Sample), Sample =
+gsub("BS253_S91","BS_253_S91",Sample),  Sample = gsub("BS254_S92","BS_254_S92",Sample),  Sample = gsub("BS255_S93","BS_255_S93",Sample), Sample =
+gsub("BS256_S94","BS_256_S94",Sample),  Sample = gsub("BS257_S95","BS_257_S95",Sample),  Sample = gsub("BS258_S96","BS_258_S96",Sample), Sample =
+gsub("BS259_S97","BS_259_S97",Sample),  Sample = gsub("BS260_S98","BS_260_S98",Sample),  Sample = gsub("BS261_S99","BS_261_S99",Sample), Sample =
+gsub("BS262_S100","BS_262_S100",Sample),  Sample = gsub("BS263_S101","BS_263_S101",Sample),  Sample = gsub("BS264_S102","BS_264_S102",Sample), Sample =
+gsub("BS265_S103","BS_265_S103",Sample),  Sample = gsub("BS266_S104","BS_266_S104",Sample),  Sample = gsub("BS267_S105","BS_267_S105",Sample), Sample =
+gsub("BS268_S106","BS_268_S106",Sample),  Sample = gsub("BS269_S107","BS_269_S107",Sample),  Sample = gsub("BS270_S108","BS_270_S108",Sample))
+
+metadata <- read_excel("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/data_fig6/BATS_BS_COMBINED_MASTER_2021.12.17.xlsx",sheet = 6) %>%
+  separate_rows(V1V2_ID,sep = ";") %>%
+  relocate(V1V2_ID) %>%
+  #na_if("-999.0") %>% #convert character -999.0 to NA
+  #na_if(-999) %>% #convert -999 to NA
+  select(which(colMeans(is.na(.)) < 1)) %>% #removing every col that is all NA
+  filter(!is.na(yyyymmdd),
+         !is.na(`time(UTC)`)) %>%
+  mutate(date = as.Date(as.character(yyyymmdd),format="%Y%m%d", ordered = T),
+         time = gsub("([0-9])([0-9])([0-9])$", "\\1:\\2\\3" , `time(UTC)`), # first time column transformation
+         time = gsub("(^[0-9]):", "0\\1:" , time), # second time column transformation
+         year = as.factor(format(date, "%Y")),
+         month = as.factor(format(date, "%m")),
+         date_time = as.character(paste(date, time), format="%m-%d-%Y %H:%M")) # as.character essential, doesn't work 
+
+metadata <- metadata %>% rename("Sample" = "V1V2_ID")
+
+v1v2_micromonas_only_metadata <- merge(v1v2_micromonas_only, metadata, by="Sample")
+
+#round decy so it matches v4 metadata
+
+v1v2_micromonas_only_metadata$decy  <- round_any(v1v2_micromonas_only_metadata$decy, 0.01)
+
+#choose only 300 m and shallower
+
+v1v2_micromonas_only_metadata <- v1v2_micromonas_only_metadata[v1v2_micromonas_only_metadata$Nominal_Depth <= 300,]
+
+#match up v4 and v1v2
+
+v1v2_v4_micromonas_metadata <- merge(v1v2_micromonas_only_metadata, micromonas_only2_metadata_ciliates, by=c("decy", "Nominal_Depth"))
+
+v1v2_v4_micromonas_metadata <- v1v2_v4_micromonas_metadata[!duplicated(v1v2_v4_micromonas_metadata$`gsub("BS227_S65", "BS_227_S65", Sample)`), ]
+
+
+
+v1v2_v4_micromonas_metadata = select(v1v2_v4_micromonas_metadata, `gsub("BS227_S65", "BS_227_S65", Sample)`, total_micromonas_sample_v1v2, total_seq1156_sample, percent_seq1156_micromonas, V4_18s_ID, V4_ID, total_micromonas_sample, total_cand2_sample, percent_cand2_micromonas) 
+
+#set Nan to 0
+
+is.nan.data.frame <- function(x)
+do.call(cbind, lapply(x, is.nan))
+
+v1v2_v4_micromonas_metadata[is.nan(v1v2_v4_micromonas_metadata)] <- 0
+
+
+#choose just samples with seq1156 and/or cand2
+
+v1v2_v4_micromonas_metadata <- v1v2_v4_micromonas_metadata[v1v2_v4_micromonas_metadata$total_seq1156_sample != 0 | v1v2_v4_micromonas_metadata$total_cand2_sample !=0,]
+
+
+shapiro.test(v1v2_v4_micromonas_metadata$percent_seq1156_micromonas)
+
+hist(v1v2_v4_micromonas_metadata$percent_seq1156_micromonas)
+
+shapiro.test(v1v2_v4_micromonas_metadata$percent_cand2_micromonas)
+
+hist(v1v2_v4_micromonas_metadata$percent_cand2_micromonas)
+
+cor.test(v1v2_v4_micromonas_metadata$percent_seq1156_micromonas, v1v2_v4_micromonas_metadata$percent_cand2_micromonas, method="spearman", exact = FALSE)
+
+#now samples with at least 10 total Micromonas amplicons
+
+v1v2_v4_micromonas_metadata.ten <- subset(v1v2_v4_micromonas_metadata, total_micromonas_sample >= 10 & total_micromonas_sample_v1v2 >= 10)
+
+cor.test(v1v2_v4_micromonas_metadata.ten$percent_seq1156_micromonas, v1v2_v4_micromonas_metadata.ten$percent_cand2_micromonas, method="spearman", exact = FALSE)
+
+#linear regression
+
+lm_all = lm(percent_seq1156_micromonas~percent_cand2_micromonas, data = v1v2_v4_micromonas_metadata)
+
+summary(lm_all)
+
+bptest(lm_all)
+
+lm_10 = lm(percent_seq1156_micromonas~percent_cand2_micromonas, data = v1v2_v4_micromonas_metadata.ten)
+
+summary(lm_10)
+
+bptest(lm_10)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+ggplot(v1v2_v4_micromonas_metadata, aes(percent_cand2_micromonas, percent_seq1156_micromonas)) +geom_point(size=2, shape=23) + theme_classic()
+
+all_graph_lm <- v1v2_v4_micromonas_metadata %>%
+  ggplot(aes(x=percent_cand2_micromonas,y=percent_seq1156_micromonas)) +
+  geom_point(alpha=1) +
+  geom_smooth(method=lm, se=FALSE) + theme_classic() + xlim(0,1) + ylim(0,1)
+
+all_graph_lm
+
+ggplot(v1v2_v4_micromonas_metadata.ten, aes(percent_cand2_micromonas, percent_seq1156_micromonas)) +geom_point(size=2, shape=23) + xlim(0,1) + ylim(0,1) + theme_classic()
+
+ten_graph_lm <- v1v2_v4_micromonas_metadata.ten %>%
+  ggplot(aes(x=percent_cand2_micromonas,y=percent_seq1156_micromonas)) +
+  geom_point(alpha=1) +
+  geom_smooth(method=lm, se=FALSE) + theme_classic() + xlim(0,1) + ylim(0,1)
+
+ten_graph_lm
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

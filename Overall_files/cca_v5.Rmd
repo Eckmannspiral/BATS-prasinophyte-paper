@@ -1,0 +1,334 @@
+---
+title: "Untitled"
+author: "charlotte"
+date: "7/26/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(vegan)
+library(tidyverse)
+library(ggrepel)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+df_all_count <-  read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/cca/newest_cca/all_asvs_summary_metadata.tsv")
+
+rownames(df_all_count) <- df_all_count$Sample
+
+df_all_count <- df_all_count[rowSums(df_all_count[c(9:ncol(df_all_count))]) > 0,]
+
+my.ASVtable <- df_all_count[c(9:ncol(df_all_count))]
+
+my.metadata <- df_all_count[c(2:7)]
+
+my.metadata_no_season <- df_all_count[c(3:7)]
+
+my.condition <- df_all_count[c(2)]
+
+df_taxa_subset <- read.csv2(file = "/Users/ceckmann/Desktop/bats_2016_2019/processed_data/merge/table_s1/vetted_real_prasinos.csv", sep=",")
+
+keep_seqs <- df_taxa_subset$ASV
+
+my.ASVtable_subset <- my.ASVtable[, names(my.ASVtable) %in% keep_seqs]
+
+my.ASVtable_subset <- my.ASVtable_subset[rowSums(my.ASVtable_subset[])>0,]
+
+my.metadata_subset <- my.metadata[rownames(my.metadata) %in% c(rownames(my.ASVtable_subset)), ]
+
+my.metadata_no_season_subset <- my.metadata_subset[c(2:6)]
+
+my.condition_subset <- my.metadata_subset[c(1)]
+
+my.otutable_log <- decostand(x = my.ASVtable,
+                             # x = my.ASVtable_subset,
+                             ## available methods: 
+                             ## c(total, max, frequency, normalize, range, rank, standardize, pa, chi.square, hellinger, log)
+                             method = "log")
+
+my.otutable_hellinger <- decostand(x = my.ASVtable,
+                                   # x = my.ASVtable_subset,
+                                   ## available methods:
+                                   ## c(total, max, frequency, normalize, range, rank, standardize, pa, chi.square, hellinger, log)
+                                   method = "hellinger")
+
+my.otutable_hellinger <- my.otutable_hellinger[, (names(my.ASVtable) %in% names(my.ASVtable_subset))]
+my.otutable_hellinger <- my.otutable_hellinger[rowSums(my.otutable_hellinger[])>0,]
+
+#head(my.ASVtable_subset)[1:5, 1:5]
+#head(my.otutable_log)[1:5, 1:5]
+#head(my.otutable_hellinger)[1:5, 1:5]
+
+my.otutable <- my.otutable_hellinger
+
+my.ccamodel <- cca(my.otutable ~ ., data = my.metadata_subset, na.action = na.exclude)
+
+metadata_season <- cbind(my.metadata_no_season_subset, my.condition_subset)
+names <- names(metadata_season)
+my.partialccamodel <- formula(paste("my.otutable ~", paste(names[1:(length(metadata_season)-(length(my.condition)) )], collapse = " + "),
+                                    "+ Condition(", paste(names[(length(metadata_season)-(length(my.condition)-1) ):length(metadata_season)], 
+                                                          collapse ="+"),")"))
+my.partialccamodel <- cca(my.partialccamodel, metadata_season, na.action = na.exclude)
+my.finalmodel <- ordistep(my.ccamodel, scope = formula(my.ccamodel))
+vif.cca(my.finalmodel)
+my.partialccamodel <- formula(paste("my.otutable ~", paste(names[1:(length(metadata_season)-(length(my.condition)) )], collapse = " + "),
+                                    "+ Condition(", paste(names[(length(metadata_season)-(length(my.condition)-1) ):length(metadata_season)], 
+                                                          collapse ="+"),")"))
+my.simplemodel <- cca(my.partialccamodel, metadata_season, na.action = na.exclude)
+my.finalmodelpartial <- ordistep(my.simplemodel, scope = formula(my.partialccamodel))
+vif.cca(my.finalmodelpartial)
+my.finalmodelpartial
+anova.cca(my.finalmodel)
+anova.cca(my.finalmodelpartial)
+anova.cca(my.finalmodel, by="terms")
+anova.cca(my.finalmodelpartial, by="terms")
+anova.cca(my.finalmodel, by="axis")
+anova.cca(my.finalmodelpartial, by="axis")
+plot(my.finalmodel, 
+     # xlim=c(-1.5,2), ylim=c(-1,1.5), 
+     display=c("sp"))
+plot(my.finalmodelpartial, 
+     # xlim=c(-1.5,2), ylim=c(-1,1.5), 
+     display=c("sp"))
+plot(my.finalmodel, 
+     # xlim=c(-3,3), ylim=c(-3,3), 
+     display=c("sp","cn"))
+plot(my.finalmodelpartial, 
+     # xlim=c(-3,3), 
+     # ylim=c(-3,3), 
+     display=c("sp","cn"), type = "text")
+
+plot(my.finalmodel, 
+     # xlim=c(-3,3), ylim=c(-3,3), 
+     display=c("sp","cn","wa"))
+plot(my.finalmodelpartial, 
+     # xlim=c(-3,3), ylim=c(-3,3), 
+     display=c("sp","cn","wa"))
+my.model <- my.finalmodelpartial
+my_sco <- scores(my.model, display = "species")
+my_tbl <- as_tibble(my_sco)
+my_tbl <- mutate(my_tbl, vgntxt = rownames(my_sco))
+plt <- ggplot(my_tbl, aes(x = CCA1, y = CCA2, label = vgntxt)) +
+  geom_point() +
+  geom_text_repel(seed = 123)
+plt +
+  theme_light()
+my_spp_sco <- scores(my.model, display = "species")
+my_sam_sco <- scores(my.model, display = "sites")
+my_env_sco <- scores(my.model, display = "bp")
+my_spp_tbl <- as_tibble(my_spp_sco)
+my_sam_tbl <- as_tibble(my_sam_sco)
+my_env_tbl <- as_tibble(my_env_sco)
+my_spp_tbl <- mutate(my_spp_tbl, vgntxt=rownames(my_spp_sco), ccatype = "species")
+my_sam_tbl <- mutate(my_sam_tbl, vgntxt=rownames(my_sam_sco), ccatype = "sites")
+my_env_tbl <- mutate(my_env_tbl, vgntxt=rownames(my_env_sco), ccatype = "bp")
+
+plt <- ggplot(my_spp_tbl, aes(x = CCA1, y = CCA2, label = vgntxt)) +
+  geom_point() +
+  geom_text_repel(seed = 123)
+plt
+
+my_env_tbl
+
+rescaled <- my_env_tbl %>% 
+  select(CCA1, CCA2) %>%
+  # as.matrix() * 1
+  # as.matrix() * 2
+  # as.matrix() * 3
+  as.matrix() * 4
+  # as.matrix() * 5
+my_tbl <- select(my_env_tbl, vgntxt, ccatype) %>%
+  bind_cols(as_tibble(rescaled)) %>%
+  bind_rows(my_spp_tbl)
+
+## add Group annotations for color labelling
+my_tbl <- my_tbl %>%
+  dplyr::left_join(x = ., y = df_taxa_subset, by = c("vgntxt" = "ASV")) %>%
+  # dplyr::mutate(across(.cols = c(Group), .fns = forcats::as_factor))
+  dplyr::mutate(across(.cols = c(Group), .fns = base::factor))
+
+#to get the proportion explained (imperfect analog for variance) for constrained axes
+
+summary(my.finalmodelpartial)
+
+## load viridis color palettes
+library(viridis)
+## create biplot
+ggplot() +
+  geom_point(data=filter(my_tbl, ccatype=="species"),
+             aes(x=CCA1, y=CCA2))  +
+  geom_text_repel(data=my_tbl, 
+                  aes(x=CCA1, y=CCA2, label=vgntxt), 
+                  seed=123, size = 2) + 
+  geom_segment(data=filter(my_tbl, ccatype=="bp"),
+               aes(x=0, y=0, xend=CCA1, yend=CCA2), 
+               arrow=arrow(length = unit(0.2,"cm"), type = "open"),
+               color="blue") +
+  coord_fixed(ratio = 1) +
+  theme_light() +
+  theme(legend.position="none")
+
+## customized version
+ggplot() +
+  geom_point(data=filter(my_tbl, ccatype=="species"),
+             aes(x=CCA1, y=CCA2, fill = Group), shape = 21, size = 2)  +
+  #geom_text_repel(data=filter(my_tbl, ccatype=="species"), 
+                  #aes(x=CCA1, y=CCA2, label=vgntxt), 
+                  #seed=123, size = 2) + 
+  geom_segment(data=filter(my_tbl, ccatype=="bp"),
+               aes(x=0, y=0, xend=CCA1, yend=CCA2 ), 
+               arrow=arrow(length = unit(0.2,"cm"), type = "closed"),
+               color="blue") +
+  geom_text_repel(data=filter(my_tbl, ccatype=="bp"), 
+                  aes(x=CCA1, y=CCA2, label=vgntxt), 
+                  seed=123, size = 2,
+                  color = "blue") + 
+  scale_fill_manual(values =c("grey", "black", "red", "blue", "orange", "red", "green", "yellow", "#8A3433","#95C287","#F0E651","#C7D240","#B5A7CE","#97CEEB", "#F3F7FB", "#1A4A92", "#4880BF", "#76A6D7", "#D0E7F4",  "#ECD5DF", "#ECD5DF","#E394B7", "#A53838", "#E5C339", "#D95C5B","#604243", "#5E292A", "#E69832", "#D12D37","#DA672C" ,"#EE052C", "#EE052C"))  +
+  coord_fixed(ratio = 1) +
+  theme_light() +
+  theme(legend.position="right",
+        legend.text = element_text(size = 8))
+
+## do not label any species +/- a critical value on either axis
+## set critical value
+# critval <- 0.5
+# my_tbl <- my_tbl %>%
+#   mutate(vgntxt=ifelse(CCA1 < critval & CCA1 > -critval &
+#                          CCA2 < critval & CCA2 > -critval &
+#                          ccatype=="species", "", vgntxt))
+# 
+# ggplot() +
+#   geom_point(aes(x=CCA1, y=CCA2), data=filter(my_tbl, ccatype=="species"))  +
+#   geom_text_repel(aes(x=CCA1, y=CCA2, label=vgntxt, colour=ccatype), data=my_tbl, seed=123, size=2.5) + 
+#   geom_segment(aes(x=0, y=0, xend=CCA1, yend=CCA2), arrow=arrow(length = unit(0.2,"cm")), 
+#                data=filter(my_tbl, ccatype=="bp"), color="blue") +
+#   coord_fixed(ratio = 1) +
+#   scale_colour_manual(values = c("blue", "black")) +
+#   theme_light() +
+#   theme(legend.position="none")
+
+## save plot to file
+ggsave(
+  # filename = "vegan_CCA_hellinger_transformation.pdf", # my.finalmodel selected (i.e., CCA)
+  # filename = "vegan_pCCA_hellinger_transformation.pdf", # my.finalmodelpartial selected (i.e., pCCA)
+  
+  # filename = "vegan_CCA_hellinger_transformation_color_version.pdf", # my.finalmodel selected (i.e., CCA)
+  filename = "vegan_pCCA_hellinger_transformation_color_version_reclassified_v3.pdf", # my.finalmodel selected (i.e., CCA)
+  plot = last_plot(),
+  device = "pdf",
+  path = NULL,
+  scale = 1,
+  # width = 89, # figure width spanning single column
+  # width = 120, # figure width spanning 1.5 columns
+  # width = 136, # figure width spanning 1.5 columns
+  width = 183, # figure spanning double column
+  # height = 62, # figure spanning 1/4 page depth
+  # height = 89, # figure spanning 1/3 page depth
+  # height = 124, # figure spanning half page depth
+  height = 140,
+  # height = 247, # figure spanning full page depth
+  units = "mm", # c("in", "cm", "mm", "px")
+  dpi = 300,
+  limitsize = TRUE,
+  bg = NULL,
+  useDingbats=FALSE
+)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+cca_final_graph <- ggplot() +
+  geom_point(data=filter(my_tbl, ccatype=="species"),
+             aes(x=CCA1, y=CCA2, fill = Group), shape = 21, size = 2, colour = "transparent")  +
+  geom_text_repel(data=filter(my_tbl, ccatype=="species"), 
+                  aes(x=CCA1, y=CCA2, label=vgntxt), 
+                  seed=123, size = 1, max.overlaps = 100) + 
+  geom_segment(data=filter(my_tbl, ccatype=="bp"),
+               aes(x=0, y=0, xend=CCA1, yend=CCA2 ), 
+               arrow=arrow(length = unit(0.2,"cm"), type = "closed"),
+               color="blue") +
+  geom_text_repel(data=filter(my_tbl, ccatype=="bp"), 
+                 aes(x=CCA1, y=CCA2, label=vgntxt), 
+                  seed=123, size = 2,
+                  color = "blue") + 
+  scale_fill_manual(values = c("#95C287", "dark green", "#DA672C", "#E69832",  "#393A39", "#C7D240", "#F3F7FB", "#97CEEB", "#1A4A92", "#4880BF",  "#D0E7F4", "#76A6D7", "#ECD5DF", "#E394B7", "#A53838", "#B5A7CE", "#E5C339","#D95C5B", "#5E292A", "#604243"))  +
+   coord_fixed(ratio = 1) +
+  theme_light() +
+  theme(legend.position="right",
+        legend.text = element_text(size = 8))
+
+#now remove labels (will add back in some by hand based on first graph)
+
+cca_final_graph_no_label <- ggplot() +
+  geom_point(data=filter(my_tbl, ccatype=="species"),
+             aes(x=CCA1, y=CCA2, fill = Group), shape = 21, size = 2, colour = "transparent")  +
+  geom_segment(data=filter(my_tbl, ccatype=="bp"),
+               aes(x=0, y=0, xend=CCA1, yend=CCA2 ), 
+               arrow=arrow(length = unit(0.2,"cm"), type = "closed"),
+               color="blue") +
+  scale_fill_manual(values = c("#95C287", "dark green", "#DA672C", "#E69832",  "#393A39", "#C7D240", "#F3F7FB", "#97CEEB", "#1A4A92", "#4880BF",  "#D0E7F4", "#76A6D7", "#ECD5DF", "#E394B7", "#A53838", "#B5A7CE", "#E5C339","#D95C5B", "#5E292A", "#604243"))  +
+   coord_fixed(ratio = 1) +
+  theme_light() +
+  theme(legend.position="right",
+        legend.text = element_text(size = 8))
+
+cca_final_graph
+
+cca_final_graph_no_label
+
+ggsave(
+  filename = "vegan_pCCA_hellinger_transformation_color_version_reclassified_labeled_v2.pdf", # my.finalmodel selected (i.e., CCA)
+  plot = cca_final_graph,
+  device = "pdf",
+  path = NULL,
+  scale = 1,
+  # width = 89, # figure width spanning single column
+  # width = 120, # figure width spanning 1.5 columns
+  # width = 136, # figure width spanning 1.5 columns
+  width = 183, # figure spanning double column
+  # height = 62, # figure spanning 1/4 page depth
+  # height = 89, # figure spanning 1/3 page depth
+  # height = 124, # figure spanning half page depth
+  height = 140,
+  # height = 247, # figure spanning full page depth
+  units = "mm", # c("in", "cm", "mm", "px")
+  dpi = 300,
+  limitsize = TRUE,
+  bg = NULL,
+  useDingbats=FALSE
+)
+
+
+ggsave(
+  filename = "vegan_pCCA_hellinger_transformation_color_version_reclassified_unlabeled_v2.pdf", # my.finalmodel selected (i.e., CCA)
+  plot = cca_final_graph_no_label,
+  device = "pdf",
+  path = NULL,
+  scale = 1,
+  # width = 89, # figure width spanning single column
+  # width = 120, # figure width spanning 1.5 columns
+  # width = 136, # figure width spanning 1.5 columns
+  width = 183, # figure spanning double column
+  # height = 62, # figure spanning 1/4 page depth
+  # height = 89, # figure spanning 1/3 page depth
+  # height = 124, # figure spanning half page depth
+  height = 140,
+  # height = 247, # figure spanning full page depth
+  units = "mm", # c("in", "cm", "mm", "px")
+  dpi = 300,
+  limitsize = TRUE,
+  bg = NULL,
+  useDingbats=FALSE
+)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

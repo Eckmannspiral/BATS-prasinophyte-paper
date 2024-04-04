@@ -1,0 +1,304 @@
+---
+title: "heatmaps"
+author: "charlotte"
+date: "6/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(RColorBrewer)
+library(gplots)
+library(tidyverse)
+library(ggplot2)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+prasino_data <- read_csv("/Users/ceckmann/Desktop/bats_2016_2019/metadata/supplemental_tables/counts_together5_metadata_prasinos.csv")
+
+#get percent prasino of plastid and make new column
+
+prasino_data$percent_prasino_of_plastid <- prasino_data$total_prasino_sample/prasino_data$total_plastid_sample * 100
+
+#get sums of prasinophyte groups
+
+prasino_data$prasi_sum <- rowSums(prasino_data[ , c("seq2883",
+"seq3768",
+"seq5929",
+"seq10835",
+"seq13406",
+"seq13534",
+"seq20223",
+"seq28442",
+"seq29225",
+"seq40454",
+"seq46479",
+"seq49019",
+"seq54940",
+"seq54953",
+"seq55021",
+"seq60686")], na.rm=TRUE)
+
+prasino_data$prasii_doli_sum <- rowSums(prasino_data[ , c("seq18122",
+"seq32339",
+"seq40809",
+"seq42169",
+"seq13532")], na.rm=TRUE)
+
+prasino_data$prasii_bathy_sum <- rowSums(prasino_data[ , c("seq1412",
+"seq177",
+"seq7808",
+"seq11443",
+"seq11662", 
+"seq26498", 
+"seq29394", 
+"seq56842",
+"seq61094",
+"seq63770",
+"seq65687")], na.rm=TRUE)
+
+prasino_data$prasii_ostreo_sum <- rowSums(prasino_data[ , c("seq1296",
+"seq30899",
+"seq6",
+"seq77",
+"seq2347", 
+"seq2949", 
+"seq3014", 
+"seq13409",
+"seq13694",
+"seq18351",
+"seq23198",
+"seq26542",
+"seq28856",
+"seq33032",
+"seq36165",
+"seq42867",
+"seq46495",
+"seq54944",
+"seq55070",
+"seq56821",
+"seq57947",
+"seq58652",
+"seq41740")], na.rm=TRUE)
+
+prasino_data$prasii_mami_sum <- rowSums(prasino_data[ , c("seq3402")], na.rm=TRUE)
+
+prasino_data$prasii_micro_sum <- rowSums(prasino_data[ , c("seq81",
+"seq40398",
+"seq1156",
+"seq345",
+"seq1217", 
+"seq61", 
+"seq273", 
+"seq816",
+"seq2535",
+"seq31345",
+"seq61975",
+"seq31558",
+"seq33106",
+"seq54488",
+"seq2277",
+"seq18746",
+"seq20924",
+"seq21175",
+"seq26857",
+"seq39525",
+"seq40606",
+"seq53633",
+"seq503",
+"seq12724")], na.rm=TRUE)
+
+prasino_data$prasiv_sum <- rowSums(prasino_data[ , c("seq16961",
+"seq34536",
+"seq59086")], na.rm=TRUE)
+
+prasino_data$prasv_sum <- rowSums(prasino_data[ , c("seq6699")], na.rm=TRUE)
+
+prasino_data$prasvi_pcoccus_sum <- rowSums(prasino_data[ , c("seq9600",
+"seq14271",
+"seq17508",
+"seq21194",
+"seq28197", 
+"seq30308", 
+"seq30570", 
+"seq41264",
+"seq42836")], na.rm=TRUE)
+
+prasino_data$prasvi_pderma_sum <- rowSums(prasino_data[ , c("seq3870",
+"seq8472",
+"seq52758",
+"seq54252",
+"seq57827")], na.rm=TRUE)
+
+prasino_data$prasvii_chloropicon_sum <- rowSums(prasino_data[ , c("seq8101",
+"seq8646",
+"seq8878",
+"seq10382",
+"seq22378",
+"seq22384",
+"seq36361")], na.rm=TRUE)
+
+prasino_data$prasviii_sum <- rowSums(prasino_data[ , c("seq6001",
+"seq7584",
+"seq9844",
+"seq9979",
+"seq17744",
+"seq21947",
+"seq23875",
+"seq31574",
+"seq54776",
+"seq57716")], na.rm=TRUE)
+
+prasino_data$putative_ix_sum <- rowSums(prasino_data[ , c("seq1248",
+"seq2562",
+"seq1638",
+"seq3858",
+"seq17799",
+"seq22206",
+"seq35374",
+"seq57981",
+"seq3019",
+"seq7021",
+"seq26923",
+"seq30087",
+"seq63408",
+"seq6637",
+"seq41934")], na.rm=TRUE)
+
+#now get percent of prasino groups out of overall prasinos
+
+prasino_data$prasi_prasino <- prasino_data$prasi_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasii_doli_prasino <- prasino_data$prasii_doli_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasii_bathy_prasino <- prasino_data$prasii_bathy_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasii_ostreo_prasino <- prasino_data$prasii_ostreo_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasii_mami_prasino <- prasino_data$prasii_mami_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasii_micro_prasino <- prasino_data$prasii_micro_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasiv_prasino <- prasino_data$prasiv_sum/prasino_data$total_prasino_sample * 100
+ 
+prasino_data$prasv_prasino <- prasino_data$prasv_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasvi_pcoccus_prasino <- prasino_data$prasvi_pcoccus_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasvi_pderma_prasino <- prasino_data$prasvi_pderma_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasvii_chloropicon_prasino <- prasino_data$prasvii_chloropicon_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$prasviii_prasino <- prasino_data$prasviii_sum/prasino_data$total_prasino_sample * 100
+
+prasino_data$putative_ix_prasino <- prasino_data$putative_ix_sum/prasino_data$total_prasino_sample * 100
+
+#now get just DCM and DCM-depth DM-period samples
+
+dcm_dm_samples <- read_csv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/heatmaps/dcm/dcm_and_dm_samples_v2.csv")
+
+dcm_dm_data <- prasino_data[prasino_data$V1V2_ID_in_metafile %in% dcm_dm_samples$V1V2_ID_in_metafile,]
+
+#now choose only the percent prasino columns for heatmap
+
+#dcm_dm_data_percents <- dcm_dm_data[,c("V1V2_ID_in_metafile", "decy", "prasvi_pderma_prasino", "prasvi_pcoccus_prasino", "putative_ix_prasino", "prasi_prasino", "prasv_prasino", "prasviii_prasino",  "prasvii_chloropicon_prasino", "prasiv_prasino", "prasii_doli_prasino", "prasii_bathy_prasino", "prasii_ostreo_prasino", "prasii_mami_prasino", "prasii_micro_prasino")]
+
+dcm_dm_data_percents <- dcm_dm_data[,c("V1V2_ID_in_metafile", "decy", "yyyymmdd", "Fluo.ug.L.", "percent_prasino_of_plastid", "prasvi_pderma_prasino", "prasvi_pcoccus_prasino", "putative_ix_prasino", "prasi_prasino", "prasv_prasino", "prasviii_prasino",  "prasvii_chloropicon_prasino", "prasiv_prasino", "prasii_doli_prasino", "prasii_bathy_prasino", "prasii_ostreo_prasino", "prasii_mami_prasino", "prasii_micro_prasino")]
+
+#to make the DCM heatmap line up with the surface need to insert blank rows and columns. this inclues a blank for March 2017 (not sampled for weather) and 2 in July 2019 that did not have prasinophytes at the DCM (BS492_S151 & BS500_S159). we also need to add blanks (0 values) for prasinophyte groups not detected at BATS (class III and class II Crustomastix). I couldn't figure out how to do this in R so I exported it to make a new spreadsheet in Excel (the .tsv file in the second part of this)
+
+write_tsv(dcm_dm_data_percents, "dcm_dm_data_percents.tsv")
+
+#now do the same for surface samples. have to add blank for March 2017, zeros for 2016.56153 (no V1V2 surface samples for that date) and also add back in as zeros the surface samples that exist in V1V2 but don't have prasinos (BS_113_S21, BS_239_S77, 1819C9N1_S57, BS319_S157, BS398_S57)
+
+surface_samples <- read_csv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/heatmaps/1m/surface_samples.csv")
+
+surface_data <- prasino_data[prasino_data$V1V2_ID_in_metafile %in% surface_samples$V1V2_ID_in_metafile,]
+
+surface_data_percents <- surface_data[,c("V1V2_ID_in_metafile", "decy", "yyyymmdd", "Fluo.ug.L.", "percent_prasino_of_plastid", "prasvi_pderma_prasino", "prasvi_pcoccus_prasino", "putative_ix_prasino", "prasi_prasino", "prasv_prasino", "prasviii_prasino",  "prasvii_chloropicon_prasino", "prasiv_prasino", "prasii_doli_prasino", "prasii_bathy_prasino", "prasii_ostreo_prasino", "prasii_mami_prasino", "prasii_micro_prasino")]
+
+write_tsv(surface_data_percents, "surface_data_percents.tsv")
+```
+
+
+```{r cars}
+#making heatmaps
+my_palette <- colorRampPalette(c("#ffffe6", "red", "black"))(n=299)
+
+col_breaks=c(seq(0,33, length=100), seq(33.001, 66, length=100), seq(66.001, 100, length=100))
+
+pras_surface <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/heatmaps/1m/surface_data_percents_transposed.tsv")
+
+row.names(pras_surface) <- pras_surface$decy
+
+pras_surface <- pras_surface[,-1]
+
+pras_surface[pras_surface == 0] <- NA
+
+pras_surface_matrix <- data.matrix(pras_surface)
+
+png("surfaceheatmap.png", width= 10000, height = 5000, units = "px",
+bg="white")
+
+pras_surface_heatmap <- heatmap.2(pras_surface_matrix, Rowv=FALSE, Colv=FALSE, dendrogram="none", col=my_palette, scale="none", margins=c(5,5),trace="none", breaks=col_breaks, density.info = "none")
+
+pras_dcm <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/heatmaps/dcm/dcm_dm_data_percents_transposed.tsv")
+
+row.names(pras_dcm) <- pras_dcm$decy
+
+pras_dcm <- pras_dcm[,-1]
+
+pras_dcm[pras_dcm == 0] <- NA
+
+pras_dcm_matrix <- data.matrix(pras_dcm)
+
+png("dcmheatmap.png", width= 10000, height = 5000, units = "px",
+bg="white")
+
+pras_dcm_heatmap <- heatmap.2(pras_dcm_matrix, Rowv=FALSE, Colv=FALSE, dendrogram="none", col=my_palette, scale="none", margins=c(5,5),trace="none", breaks=col_breaks, density.info = "none")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+#fluo and percent prasino bar plots. have to have "order number" instead of "decy" on x-axis because this includes same-day samples. Also remove the wonky Feb 2017 fluo profile
+
+surface <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/heatmaps/1m/surface_fluo_percent_prasino.tsv")
+surfaceperpras <- ggplot(surface, aes(x=order_number, y=percent_prasino_of_plastid)) + geom_bar(stat="identity", position=position_dodge(width=0), width=0.5, fill="grey") + ylim (0,100) + theme_classic()+ geom_col(width = 1)
+surfacefluo <- ggplot(surface, aes(x=order_number, y=Fluo.ug.L.)) + geom_bar(stat="identity", position=position_dodge(width=0), width=0.5, fill="grey") + ylim (0,0.6) + theme_classic()+ geom_col(width = 1)
+
+dcm <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/heatmaps/dcm/dcm_fluo_percent_prasino.tsv")
+dcmfluo <- ggplot(dcm, aes(x=order_number, y=Fluo.ug.L.)) + geom_bar(stat="identity", position=position_dodge(width=0), width=0.5, fill="grey") + ylim (0,0.6) + theme_classic()+ geom_col(width = 1)
+dcmperpras <- ggplot(dcm, aes(x=order_number, y=percent_prasino_of_plastid)) + geom_bar(stat="identity", position=position_dodge(width=0), width=0.5, fill="grey") + ylim (0,100) + theme_classic()+ geom_col(width = 1)
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+surfaceperpras
+
+ggsave("surfaceperpras.pdf", plot = surfaceperpras, width=20, height=5, units="cm", useDingbats=FALSE)
+
+surfacefluo
+
+ggsave("surfacefluo.pdf", plot = surfacefluo, width=20, height=5, units="cm", useDingbats=FALSE)
+
+dcmperpras
+
+ggsave("dcmperpras.pdf", plot = dcmperpras, width=20, height=5, units="cm", useDingbats=FALSE)
+
+dcmfluo
+
+ggsave("dcmfluo.pdf", plot = dcmfluo, width=20, height=5, units="cm", useDingbats=FALSE)
+
+```
+
