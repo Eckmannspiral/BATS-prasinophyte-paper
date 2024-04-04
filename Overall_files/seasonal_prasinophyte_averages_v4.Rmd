@@ -1,0 +1,147 @@
+---
+title: "percent_prasino_averages"
+author: "charlotte"
+date: "8/8/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+library(rstatix)
+`%notin%` <- Negate(`%in%`)
+
+round_any = function(x, accuracy, f=round){f(x/ accuracy) * accuracy}
+#thanks to Holger Brandl from stackoverview for this plyr workaround!
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+prasino_data <- read_csv("/Users/ceckmann/Desktop/bats_2016_2019/metadata/supplemental_tables/counts_together5_metadata_prasinos.csv")
+
+prasino_data$percent_prasino_of_plastid <- prasino_data$total_prasino_sample/prasino_data$total_plastid_sample * 100
+
+################DM averages###################
+
+dm_only <- prasino_data[prasino_data$Season==1,]
+
+dm_only_surface <- dm_only[dm_only$Nominal_Depth <= 1,]
+
+dm_only_mixed_layer <- dm_only[dm_only$VertZone <= 0,]
+
+dm_only_one_percent_light <- dm_only[dm_only$Nominal_Depth >= 80 & dm_only$Nominal_Depth <= 120,]
+
+#DM surface
+
+dm_only_surface_prasino_avg <- mean(dm_only_surface$percent_prasino_of_plastid, na.rm =TRUE)
+
+dm_only_surface_prasino_sd <- sd(dm_only_surface$percent_prasino_of_plastid, na.rm =TRUE)
+
+#DM mixed layer
+
+dm_only_mixed_prasino_prasino_avg <- mean(dm_only_mixed_layer$percent_prasino_of_plastid, na.rm =TRUE)
+
+dm_only_mixed_prasino_prasino_sd <- sd(dm_only_mixed_layer$percent_prasino_of_plastid, na.rm =TRUE)
+
+#DM 1% light
+
+dm_only_one_percent_light_prasino_prasino_avg <- mean(dm_only_one_percent_light$percent_prasino_of_plastid, na.rm =TRUE)
+
+dm_only_one_percent_light_prasino_prasino_sd <- sd(dm_only_one_percent_light$percent_prasino_of_plastid, na.rm =TRUE)
+
+################ST averages###################
+
+st_only <- prasino_data[prasino_data$Season==2,]
+
+st_only_surface <- st_only[st_only$Nominal_Depth <= 1,]
+
+st_only_surface_prasino_avg <- mean(st_only_surface$percent_prasino_of_plastid, na.rm =TRUE)
+
+st_only_surface_prasino_sd <- sd(st_only_surface$percent_prasino_of_plastid, na.rm =TRUE)
+
+################SS averages###################
+
+ss_only <- prasino_data[prasino_data$Season==3,]
+
+ss_only_surface <- ss_only[ss_only$Nominal_Depth <= 1,]
+
+ss_only_surface_prasino_avg <- mean(ss_only_surface$percent_prasino_of_plastid, na.rm =TRUE)
+
+ss_only_surface_prasino_sd <- sd(ss_only_surface$percent_prasino_of_plastid, na.rm =TRUE)
+
+################AT averages###################
+
+at_only <- prasino_data[prasino_data$Season==4,]
+
+at_only_surface <- at_only[at_only$Nominal_Depth <= 1,]
+
+at_only_surface_prasino_avg <- mean(at_only_surface$percent_prasino_of_plastid, na.rm =TRUE)
+
+at_only_surface_prasino_sd <- sd(at_only_surface$percent_prasino_of_plastid, na.rm =TRUE)
+
+################DCM only###################
+
+dcm_samples <- read.csv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/heatmaps/dcm/all_dcm_samples_v2.csv", sep=",")
+
+dcm_only <- prasino_data[prasino_data$Sample %in% dcm_samples$Sample,]
+
+dcm_only_prasino_avg <- mean(dcm_only$percent_prasino_of_plastid, na.rm =TRUE)
+
+dcm_only_prasino_sd <- sd(dcm_only$percent_prasino_of_plastid, na.rm =TRUE)
+
+################surface percent comparisons###################
+
+shapiro.test(dm_only_surface$percent_prasino_of_plastid)
+shapiro.test(st_only_surface$percent_prasino_of_plastid)
+shapiro.test(ss_only_surface$percent_prasino_of_plastid)
+shapiro.test(at_only_surface$percent_prasino_of_plastid)
+
+all_prasino_surface <- prasino_data[prasino_data$Nominal_Depth <= 1,]
+
+all_prasino_surface %>% 
+  group_by(Season) %>%
+  get_summary_stats(percent_prasino_of_plastid, type = "common")
+
+res.kruskal <- all_prasino_surface %>% kruskal_test(percent_prasino_of_plastid ~ Season)
+res.kruskal
+
+all_prasino_surface %>% kruskal_effsize(percent_prasino_of_plastid ~ Season, ci = TRUE, conf.level = 0.9, nboot=1000)
+
+pwc <- all_prasino_surface %>% 
+  dunn_test(percent_prasino_of_plastid ~ Season, p.adjust.method = "bonferroni") 
+  pwc
+
+
+################chl & fluo percent comparisons###################
+
+shapiro.test(prasino_data$chl.ug.kg.)
+shapiro.test(prasino_data$percent_prasino_of_plastid)
+
+cor.test(prasino_data$chl.ug.kg., prasino_data$percent_prasino_of_plastid, method="spearman", exact = FALSE)
+
+#get rid of questionable Feb 2017 profiles
+
+prasino_data2<-prasino_data[!(prasino_data$yyyymmdd== "20170218"),]
+
+shapiro.test(prasino_data2$Fluo.ug.L.)
+
+cor.test(prasino_data2$Fluo.ug.L., prasino_data2$percent_prasino_of_plastid, method="spearman", exact = FALSE)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -1,0 +1,125 @@
+---
+title: "hellinger anosim v2"
+author: "charlotte"
+date: "8/11/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(vegan)
+library(dplyr)
+library(tibble)
+library(tidyverse)
+
+round_any = function(x, accuracy, f=round){f(x/ accuracy) * accuracy}
+#thanks to Holger Brandl from stackoverview for this plyr workaround!
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+feature <- read_tsv("/Users/ceckmann/Desktop/bats_2016_2019/og_data_Fabian/feature_table_taxPA.tsv") %>%
+  pivot_longer(cols = `C4_1_S25`:`BS.96b_S152`,
+  names_to = "Sample", values_to = "copies")
+
+df_taxa_subset <- read_csv(file = "/Users/ceckmann/Desktop/bats_2016_2019/processed_data/merge/table_s1/vetted_real_prasinos.csv")
+
+feature_table_summary <- feature %>% select(-cyanoplastid, -cyano, -viridi, -strameno, -pelago, -dictyo) %>%  pivot_wider(names_from = name, values_from = copies)
+
+#feature_table_summary <- feature_table_summary %>% rename("V1V2.ID" = "Sample")
+
+feature_table_summary <- column_to_rownames(feature_table_summary, var = "Sample")
+
+feature_table_summary <-feature_table_summary[rowSums(feature_table_summary[c(1:ncol(feature_table_summary))]) > 0,]
+
+my.otutable_hellinger <- decostand(x = feature_table_summary[c(1:ncol(feature_table_summary))], method = "hellinger")
+
+keep_seqs <- df_taxa_subset$ASV
+
+my.otutable_hellinger <- my.otutable_hellinger[, (names(feature_table_summary) %in% keep_seqs)]
+
+my.otutable_hellinger <- my.otutable_hellinger %>% rownames_to_column(var = "Sample")
+
+#get only samples used in this project
+
+paper_samples <- read.csv("/Users/ceckmann/Desktop/bats_2016_2019/metadata/supplemental_tables/bats_table_s1_v10.csv", sep=",")
+
+my.otutable_hellinger_paper_samples <- merge(paper_samples, my.otutable_hellinger, by="Sample")
+
+#Get DCM samples
+
+#my.otutable_hellinger_paper_samples$DCM <- round_any(my.otutable_hellinger_paper_samples$DCM, 40)
+
+#hellinger_dcm_only <- my.otutable_hellinger_paper_samples[my.otutable_hellinger_paper_samples$Season != 1 & my.otutable_hellinger_paper_samples$DCM==my.otutable_hellinger_paper_samples$Nominal_Depth,]
+
+#this is complicated because while most profiles have depth intervals of 40 m, sometimes extra sampling was taken exactly at the DCM eg., 95 m. so read in a manually curated list of DCM samples where the closest depth to the DCM for each profile is chosen
+
+dcm_samples <- read.csv("/Users/ceckmann/Desktop/bats_2016_2019/processed_data/heatmaps/dcm/all_dcm_samples_v2.csv", sep=",")
+
+dcm_hellinger <- my.otutable_hellinger_paper_samples[my.otutable_hellinger_paper_samples$Sample %in% dcm_samples$Sample,]
+
+dcm_hellinger_ss_only <- dcm_hellinger[dcm_hellinger$Season == 3,]
+
+#Get DM mixed layer samples
+
+dm_ml_hellinger <- my.otutable_hellinger_paper_samples[my.otutable_hellinger_paper_samples$Season == 1 & my.otutable_hellinger_paper_samples$VertZone==0,]
+
+#Get DM surface samples
+
+dm_surface_hellinger <- my.otutable_hellinger_paper_samples[my.otutable_hellinger_paper_samples$Season == 1 & my.otutable_hellinger_paper_samples$Nominal_Depth==1,]
+
+#Get SS surface samples
+
+ss_surface_hellinger <- my.otutable_hellinger_paper_samples[my.otutable_hellinger_paper_samples$Season == 3 & my.otutable_hellinger_paper_samples$Nominal_Depth==1,]
+
+#Get DM & SS surface samples
+
+dm_ss_surface_hellinger <- my.otutable_hellinger_paper_samples[my.otutable_hellinger_paper_samples$Season %in% c(1,3) & my.otutable_hellinger_paper_samples$Nominal_Depth==1,]
+
+#ANOSIM to see does prasino community vary with depth in the DM ML
+
+com_deep_dm_ml_hellinger = dm_ml_hellinger[,44:ncol(dm_ml_hellinger)]
+m_com_deep_dm_ml_hellinger = as.matrix(com_deep_dm_ml_hellinger)
+ano_deep_dm_ml_hellinger = anosim(m_com_deep_dm_ml_hellinger, dm_ml_hellinger$Nominal_Depth, distance = "bray", permutations = 9999)
+ano_deep_dm_ml_hellinger
+
+#ANOSIM to see does prasino community vary at surface between DM and SS
+
+com_dm_ss_surface_hellinger = dm_ss_surface_hellinger[,44:ncol(dm_ss_surface_hellinger)]
+m_com_dm_ss_surface_hellinger = as.matrix(com_dm_ss_surface_hellinger)
+ano_dm_ss_surface_hellinger = anosim(m_com_dm_ss_surface_hellinger, dm_ss_surface_hellinger$Season, distance = "bray", permutations = 9999)
+ano_dm_ss_surface_hellinger
+
+#ANOSIM to see does prasino community vary between SS surface and DM ML
+
+dm_ml_ss_surface_hellinger <- rbind(dm_ml_hellinger, ss_surface_hellinger)
+
+com_dm_ml_ss_surface_hellinger = dm_ml_ss_surface_hellinger[,44:ncol(dm_ml_ss_surface_hellinger)]
+m_com_dm_ml_ss_surface_hellinger = as.matrix(com_dm_ml_ss_surface_hellinger)
+ano_dm_ml_ss_surface_hellinger = anosim(m_com_dm_ml_ss_surface_hellinger, dm_ml_ss_surface_hellinger$Season, distance = "bray", permutations = 9999)
+ano_dm_ml_ss_surface_hellinger
+
+#ANOSIM to see does prasino community vary between SS DCM and DM ML
+
+dm_ml_ss_dcm_hellinger <- rbind(dm_ml_hellinger, dcm_hellinger_ss_only)
+
+com_dm_ml_ss_dcm_hellinger = dm_ml_ss_dcm_hellinger[,44:ncol(dm_ml_ss_dcm_hellinger)]
+m_com_dm_ml_ss_dcm_hellinger = as.matrix(com_dm_ml_ss_dcm_hellinger)
+ano_dm_ml_ss_dcm_hellinger = anosim(m_com_dm_ml_ss_dcm_hellinger, dm_ml_ss_dcm_hellinger$Season, distance = "bray", permutations = 9999)
+ano_dm_ml_ss_dcm_hellinger
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

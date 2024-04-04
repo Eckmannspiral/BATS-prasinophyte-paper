@@ -1,0 +1,329 @@
+---
+title: "environmental averages"
+author: "charlotte"
+date: "8/8/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+library(rstatix)
+library(dplyr)
+`%notin%` <- Negate(`%in%`)
+
+round_any = function(x, accuracy, f=round){f(x/ accuracy) * accuracy}
+#thanks to Holger Brandl from stackoverflow for this plyr workaround!
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+setwd("/Users/ceckmann/Downloads/")
+source('/Users/ceckmann/Downloads/v1v2_dataset_import_v6.R')
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+################chl fluo comparisons#######################
+
+overall_chl <- metadata_new[c("ID", "decy","Nominal_Depth", "Chl")]
+
+overall_chl <- na.omit(overall_chl)
+
+shapiro.test(overall_chl$Chl)
+#it's significant, so not normal
+
+overall_fluo <- metadata_new[c("ID", "decy","Nominal_Depth", "Fluo(RFU)")]
+
+#get rid of questionable Feb 2017 profiles
+
+overall_fluo<-overall_fluo[!(overall_fluo$decy== c(2017.132, 2017.134, 2017.135, 2017.136, 2017.138)),]
+
+overall_fluo <- na.omit(overall_fluo)
+
+shapiro.test(overall_fluo$`Fluo(RFU)`)
+#it's significant, so not normal
+
+overall_fluo_chl <- left_join(overall_chl, overall_fluo, by="ID")
+
+overall_fluo_chl <- na.omit(overall_fluo_chl)
+
+cor.test(overall_fluo_chl$Chl, overall_fluo_chl$`Fluo(RFU)`, method="spearman", exact = FALSE)
+
+################chl poc comparisons#######################
+
+overall_poc <- metadata_new[c("ID", "decy","Nominal_Depth", "POC (ug/kg)")]
+
+overall_poc <- na.omit(overall_poc)
+
+shapiro.test(overall_poc$`POC (ug/kg)`)
+#it's significant, so not normal
+
+overall_poc_chl <- left_join(overall_chl, overall_poc, by= "ID")
+
+overall_poc_chl <- na.omit(overall_poc_chl)
+
+cor.test(overall_poc_chl$Chl, overall_poc_chl$`POC (ug/kg)`, method="spearman", exact = FALSE)
+
+overall_poc_fluo <- left_join(overall_fluo, overall_poc, by= "ID")
+
+overall_poc_fluo <- na.omit(overall_poc_fluo)
+
+cor.test(overall_poc_fluo$`Fluo(RFU)`, overall_poc_fluo$`POC (ug/kg)`, method="spearman", exact = FALSE)
+
+################DM averages###################
+
+dm_only <- metadata_new[metadata_new$Season==1,]
+
+dm_only_surface <- dm_only[dm_only$Nominal_Depth <= 1,]
+
+dm_only_mixed_layer <- dm_only[dm_only$VertZone <= 0,]
+
+dm_only_one_percent_light <- dm_only[dm_only$Nominal_Depth >= 80 & dm_only$Nominal_Depth <= 120,]
+
+#DM surface
+
+dm_only_surface_temp_avg <- mean(dm_only_surface$Temp, na.rm =TRUE)
+
+dm_only_surface_temp_sd <- sd(dm_only_surface$Temp, na.rm =TRUE)
+
+dm_only_surface_sal_avg <- mean(dm_only_surface$CTD_S, na.rm =TRUE)
+
+dm_only_surface_sal_sd <- sd(dm_only_surface$CTD_S, na.rm =TRUE)
+
+dm_only_surface_no3no2_avg <- mean(dm_only_surface$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+dm_only_surface_no3no2_sd <- sd(dm_only_surface$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+dm_only_surface_po4_avg <- mean(dm_only_surface$`PO4(umol/kg)`, na.rm =TRUE)
+
+dm_only_surface_po4_sd <- sd(dm_only_surface$`PO4(umol/kg)`, na.rm =TRUE)
+
+dm_only_surface_chl_avg <- mean(dm_only_surface$Chl, na.rm =TRUE)
+
+dm_only_surface_chl_sd <- sd(dm_only_surface$Chl, na.rm =TRUE)
+
+#DM mixed layer
+
+dm_only_mixed_layer_temp_avg <- mean(dm_only_mixed_layer$Temp, na.rm =TRUE)
+
+dm_only_mixed_layer_temp_sd <- sd(dm_only_mixed_layer$Temp, na.rm =TRUE)
+
+dm_only_mixed_layer_sal_avg <- mean(dm_only_mixed_layer$CTD_S, na.rm =TRUE)
+
+dm_only_mixed_layer_sal_sd <- sd(dm_only_mixed_layer$CTD_S, na.rm =TRUE)
+
+dm_only_mixed_layer_no3no2_avg <- mean(dm_only_mixed_layer$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+dm_only_mixed_layer_no3no2_sd <- sd(dm_only_mixed_layer$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+dm_only_mixed_layer_po4_avg <- mean(dm_only_mixed_layer$`PO4(umol/kg)`, na.rm =TRUE)
+
+dm_only_mixed_layer_po4_sd <- sd(dm_only_mixed_layer$`PO4(umol/kg)`, na.rm =TRUE)
+
+dm_only_mixed_layer_chl_avg <- mean(dm_only_mixed_layer$Chl, na.rm =TRUE)
+
+dm_only_mixed_layer_chl_sd <- sd(dm_only_mixed_layer$Chl, na.rm =TRUE)
+
+#DM 1% light level
+
+dm_only_one_percent_light_temp_avg <- mean(dm_only_one_percent_light$Temp, na.rm =TRUE)
+
+dm_only_one_percent_light_temp_sd <- sd(dm_only_one_percent_light$Temp, na.rm =TRUE)
+
+dm_only_one_percent_light_sal_avg <- mean(dm_only_one_percent_light$CTD_S, na.rm =TRUE)
+
+dm_only_one_percent_light_sal_sd <- sd(dm_only_one_percent_light$CTD_S, na.rm =TRUE)
+
+dm_only_one_percent_light_no3no2_avg <- mean(dm_only_one_percent_light$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+dm_only_one_percent_light_no3no2_sd <- sd(dm_only_one_percent_light$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+dm_only_one_percent_light_po4_avg <- mean(dm_only_one_percent_light$`PO4(umol/kg)`, na.rm =TRUE)
+
+dm_only_one_percent_light_po4_sd <- sd(dm_only_one_percent_light$`PO4(umol/kg)`, na.rm =TRUE)
+
+dm_only_one_percent_light_chl_avg <- mean(dm_only_one_percent_light$Chl, na.rm =TRUE)
+
+dm_only_one_percent_light_chl_sd <- sd(dm_only_one_percent_light$Chl, na.rm =TRUE)
+
+################ST averages###################
+
+st_only <- metadata_new[metadata_new$Season==2,]
+
+st_only_surface <- st_only[st_only$Nominal_Depth <= 1,]
+
+st_only_surface_temp_avg <- mean(st_only_surface$Temp, na.rm =TRUE)
+
+st_only_surface_temp_sd <- sd(st_only_surface$Temp, na.rm =TRUE)
+
+st_only_surface_sal_avg <- mean(st_only_surface$CTD_S, na.rm =TRUE)
+
+st_only_surface_sal_sd <- sd(st_only_surface$CTD_S, na.rm =TRUE)
+
+st_only_surface_no3no2_avg <- mean(st_only_surface$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+st_only_surface_no3no2_sd <- sd(st_only_surface$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+st_only_surface_po4_avg <- mean(st_only_surface$`PO4(umol/kg)`, na.rm =TRUE)
+
+st_only_surface_po4_sd <- sd(st_only_surface$`PO4(umol/kg)`, na.rm =TRUE)
+
+st_only_surface_chl_avg <- mean(st_only_surface$Chl, na.rm =TRUE)
+
+st_only_surface_chl_sd <- sd(st_only_surface$Chl, na.rm =TRUE)
+
+################SS averages###################
+
+ss_only <- metadata_new[metadata_new$Season==3,]
+
+ss_only_surface <- ss_only[ss_only$Nominal_Depth <= 1,]
+
+ss_only_surface_temp_avg <- mean(ss_only_surface$Temp, na.rm =TRUE)
+
+ss_only_surface_temp_sd <- sd(ss_only_surface$Temp, na.rm =TRUE)
+
+ss_only_surface_sal_avg <- mean(ss_only_surface$CTD_S, na.rm =TRUE)
+
+ss_only_surface_sal_sd <- sd(ss_only_surface$CTD_S, na.rm =TRUE)
+
+ss_only_surface_no3no2_avg <- mean(ss_only_surface$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+ss_only_surface_no3no2_sd <- sd(ss_only_surface$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+ss_only_surface_po4_avg <- mean(ss_only_surface$`PO4(umol/kg)`, na.rm =TRUE)
+
+ss_only_surface_po4_sd <- sd(ss_only_surface$`PO4(umol/kg)`, na.rm =TRUE)
+
+ss_only_surface_chl_avg <- mean(ss_only_surface$Chl, na.rm =TRUE)
+
+ss_only_surface_chl_sd <- sd(ss_only_surface$Chl, na.rm =TRUE)
+
+################AT averages###################
+
+at_only <- metadata_new[metadata_new$Season==4,]
+
+at_only_surface <- at_only[at_only$Nominal_Depth <= 1,]
+
+at_only_surface_temp_avg <- mean(at_only_surface$Temp, na.rm =TRUE)
+
+at_only_surface_temp_sd <- sd(at_only_surface$Temp, na.rm =TRUE)
+
+at_only_surface_sal_avg <- mean(at_only_surface$CTD_S, na.rm =TRUE)
+
+at_only_surface_sal_sd <- sd(at_only_surface$CTD_S, na.rm =TRUE)
+
+at_only_surface_no3no2_avg <- mean(at_only_surface$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+at_only_surface_no3no2_sd <- sd(at_only_surface$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+at_only_surface_po4_avg <- mean(at_only_surface$`PO4(umol/kg)`, na.rm =TRUE)
+
+at_only_surface_po4_sd <- sd(at_only_surface$`PO4(umol/kg)`, na.rm =TRUE)
+
+at_only_surface_chl_avg <- mean(at_only_surface$Chl, na.rm =TRUE)
+
+at_only_surface_chl_sd <- sd(at_only_surface$Chl, na.rm =TRUE)
+
+################DCM only###################
+
+#metadata_new$DCM <- round_any(metadata_new$DCM, 20)
+
+#dcm_only <- metadata_new[metadata_new$DCM==metadata_new$Nominal_Depth, ]
+
+dcm_only <- metadata_new[metadata_new$VertZone== 2, ]
+
+dcm_only_temp_avg <- mean(dcm_only$Temp, na.rm =TRUE)
+
+dcm_only_temp_sd <- sd(dcm_only$Temp, na.rm =TRUE)
+
+dcm_only_sal_avg <- mean(dcm_only$CTD_S, na.rm =TRUE)
+
+dcm_only_sal_sd <- sd(dcm_only$CTD_S, na.rm =TRUE)
+
+dcm_only_no3no2_avg <- mean(dcm_only$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+dcm_only_no3no2_sd <- sd(dcm_only$`NO3+NO2(umol/kg)`, na.rm =TRUE)
+
+dcm_only_po4_avg <- mean(dcm_only$`PO4(umol/kg)`, na.rm =TRUE)
+
+dcm_only_po4_sd <- sd(dcm_only$`PO4(umol/kg)`, na.rm =TRUE)
+
+dcm_only_chl_avg <- mean(dcm_only$Chl, na.rm =TRUE)
+
+dcm_only_chl_sd <- sd(dcm_only$Chl, na.rm =TRUE)
+
+################Chl comparisons#######################
+
+chl_surface <- metadata_new[metadata_new$Nominal_Depth <= 1,]
+
+chl_surface2 <- chl_surface[complete.cases(chl_surface$Chl), ]
+
+shapiro.test(chl_surface$Chl)
+
+chl_surface %>% 
+  group_by(Season) %>%
+  get_summary_stats(Chl, type = "common")
+
+res.kruskal <- chl_surface %>% kruskal_test(Chl ~ Season)
+res.kruskal
+
+chl_surface %>% kruskal_effsize(Chl ~ Season, ci = TRUE,
+  conf.level = 0.95, nboot=1000)
+
+pwc <- chl_surface %>% 
+  dunn_test(Chl ~ Season, p.adjust.method = "bonferroni") 
+  pwc
+  
+multiVDA(Chl ~ Season, data=chl_surface)
+  
+#DCM
+
+chl_dcm <- dcm_only[complete.cases(dcm_only$Chl), ]
+
+shapiro.test(chl_dcm$Chl)
+#not normally distributed
+
+dm_only_one_percent_light_chl <- dm_only_one_percent_light[complete.cases(dm_only_one_percent_light$Chl), ]
+
+shapiro.test(dm_only_one_percent_light$Chl)
+
+#add a column saying these are "real" DCM values (as opposed to 1% light level depth)
+
+chl_dcm <- chl_dcm %>% mutate(true_dcm = "yes")
+
+#add a column saying these are not "real" DCM values (because they are 1% light level depth)
+
+dm_only_one_percent_light_chl <- dm_only_one_percent_light_chl %>% mutate(true_dcm = "no")
+
+chl_dcm_dm_only_one_percent_light_chl <- rbind(chl_dcm, dm_only_one_percent_light_chl)
+
+chl_dcm_dm_only_one_percent_light_chl %>% 
+  group_by(true_dcm) %>%
+  get_summary_stats(Chl, type = "common")
+
+res.kruskal <- chl_dcm_dm_only_one_percent_light_chl %>% kruskal_test(Chl ~ true_dcm)
+res.kruskal
+
+chl_dcm_dm_only_one_percent_light_chl %>% kruskal_effsize(Chl ~ true_dcm, ci = TRUE,
+  conf.level = 0.95, nboot=1000)
+
+pwc <- chl_dcm_dm_only_one_percent_light_chl %>% 
+  dunn_test(Chl ~ true_dcm, p.adjust.method = "bonferroni") 
+pwc
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
