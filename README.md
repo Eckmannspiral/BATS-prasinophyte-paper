@@ -16,7 +16,7 @@ BATS_BS_COMBINED_MASTER_2021.12.17.xlsx
 bats_pigments.xlsx
 bats_bottle.xlsx
 BATS_PP_2016_2020.xlsx
-2016_to_2019_ctd_data.xlsx
+2016_to_2019_ctd_data.xlsx (this file is too big to upload but is downloaded from https://bats.bios.asu.edu/bats-data/)
 
 BATS_counts_v4_chl.Rmd:
 feature_table_taxPA.tsv
