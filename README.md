@@ -1,6 +1,8 @@
 # BATS-prasinophyte-paper
 Code used for statistics and figure generation
 
+If there are any issues with this information please report them and I will be happy to take a look.
+
 Files used to generate most of the datafiles used in stats and figures:
 
 v1v2_dataset_import_v6.R:
@@ -31,7 +33,7 @@ Figure 2:
 heatmaps_v3.Rmd, counts_together5_metadata_prasinos.csv, dcm_and_dm_samples_v2.csv, surface_samples.csv, dcm_dm_data_percents_transposed.tsv, surface_data_percents_transposed.tsv, surface_fluo_percent_prasino.tsv, dcm_fluo_percent_prasino.tsv
 
 Figure 3:
-a. euk_chl_scatter_v3, counts_together5_metadata_prasinos.csv
+a. chl_euk_scatter_v3, counts_together5_metadata_prasinos.csv
 b. circle_v2.Rmd, counts_together5_metadata_prasinos.csv
 
 Figure 4:
@@ -69,3 +71,14 @@ rarefraction_all_asvs_v2.Rmd, BATS_BS_COMBINED_MASTER_2021.12.17_cae.xlsx, paper
 
 Figure S9:
 rarefraction_all_asvs_plastid_only.Rmd, BATS_BS_COMBINED_MASTER_2021.12.17_cae.xlsx, paper_samples.csv, feature_table.tsv
+
+Statistics information:
+
+Averages, standard deviations, Kruskal-Wallis and Dunn tests, and Spearman correlations:
+seasonal_enviro_averages_v5.Rmd, v1v2_dataset_import_v6.R
+seasonal_prasinophyte_averages_v4.Rmd, counts_together5_metadata_prasinos.csv
+
+ANOSIM:
+hellinger_anosim_v3.Rmd, feature_table_taxPA.tsv, vetted_real_prasinos.csv, bats_table_s1_v10.csv
+
+
