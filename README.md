@@ -81,4 +81,11 @@ seasonal_prasinophyte_averages_v4.Rmd, counts_together5_metadata_prasinos.csv
 ANOSIM:
 hellinger_anosim_v3.Rmd, feature_table_taxPA.tsv, vetted_real_prasinos.csv, bats_table_s1_v10.csv
 
+Comparing ASVs to other papers:
+Bay of Bengal: BoB_asv_calcs.Rmd, 20230324-TaxonomicPlacement.csv, 20230324-FeatureTable.csv
+
+(farther) North Atlantic: seqtab-par.txt.tmp.co, on16_photo891.tab, bolaños_et_al_comparison_v2.xlsx
+
+Curaçao:
+
 
