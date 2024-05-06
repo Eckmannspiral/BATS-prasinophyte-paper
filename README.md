@@ -75,17 +75,20 @@ rarefraction_all_asvs_plastid_only.Rmd, BATS_BS_COMBINED_MASTER_2021.12.17_cae.x
 Statistics information:
 
 Averages, standard deviations, Kruskal-Wallis and Dunn tests, and Spearman correlations:
-seasonal_enviro_averages_v5.Rmd, v1v2_dataset_import_v6.R
+seasonal_enviro_averages_v6.Rmd*, seasonal_enviro_averages_v5.Rmd, v1v2_dataset_import_v6.R
 seasonal_prasinophyte_averages_v4.Rmd, counts_together5_metadata_prasinos.csv
+
+*note: this version removed two of the "DCM" samples from the DM period from the DCM samples used for statistics (v5 counted ALL samples with a DCM value in the BATS_BS_COMBINED_MASTER_2021.12.17.xlsx file); this does not change the lack of statistical significance between the Chl a values for the 1% light level DM samples and those of the DCM samples (p-value 0.113 vs. 0.097) and only very slightly changes the DCM average values
 
 ANOSIM:
 hellinger_anosim_v3.Rmd, feature_table_taxPA.tsv, vetted_real_prasinos.csv, bats_table_s1_v10.csv
 
 Comparing ASVs to other papers:
+
 Bay of Bengal: BoB_asv_calcs.Rmd, 20230324-TaxonomicPlacement.csv, 20230324-FeatureTable.csv
 
 (farther) North Atlantic: seqtab-par.txt.tmp.co, on16_photo891.tab, bolaños_et_al_comparison_v2.xlsx
 
-Curaçao:
+Curaçao: Table_S4_25Mar2023.xlsx, curacao_asv_match_percent_plastid.xlsx
 
 
