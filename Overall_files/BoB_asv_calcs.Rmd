@@ -1,0 +1,93 @@
+---
+title: "bob_again"
+author: "charlotte"
+date: "2024-05-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(readxl)
+library(RColorBrewer)
+library(ggplot2)
+library(lubridate) #for ODV plot
+library(reshape2) #for ODV plot
+library(MBA) #for ODV plot
+library(mgcv) #for ODV plot
+library(readxl)
+library(dplyr)
+library(janitor)
+
+library(patchwork)
+
+#logical arguments
+`%notin%` <- Negate(`%in%`)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+assignments <- read_csv("/Users/ceckmann/Desktop/BoB/ASV_files/new_tables_Fabian/20230324-TaxonomicPlacement.csv")
+
+feature <- read_csv("/Users/ceckmann/Desktop/BoB/ASV_files/new_tables_Fabian/20230324-FeatureTable.csv") %>%
+  full_join(assignments, by = "ASV_ID") %>%
+  relocate(Placement_Global,	Placement_CyanoPlastid,	Placement_Cyanobacteria,	Placement_Prochlorococcus,	Placement_Synechococcus,	Placement_Plastids,	Placement_Stramenopiles,	Placement_Dictyochophytes,	Placement_Pelagophytes,	Placement_Viridiplantae,	Placement_Prasinophytes) %>%
+  pivot_longer(cols = `Bengal-C10N17`:`Bengal-C9N23`,
+              names_to = "Sample", values_to = "copies")
+
+all_counts <- feature %>% add_count(Sample, wt = copies, name = "total_read_sample") %>%
+  mutate(rel_abund = copies / total_read_sample * 100)
+
+plastid_only <- feature %>% filter (!is.na(Placement_Plastids)) %>% 
+  add_count(Sample, wt = copies, name = "total_plastid_sample") %>% 
+  mutate(rel_abund_plastid = copies / total_plastid_sample * 100)
+
+#maximum of ab80aa6a6d79a3d92be11de5131588b3 (equivalent to BATS ASV6)
+ab80aa6a6d79a3d92be11de5131588b3_only <- plastid_only[plastid_only$ASV_ID=="ab80aa6a6d79a3d92be11de5131588b3",]
+
+max(ab80aa6a6d79a3d92be11de5131588b3_only$rel_abund_plastid)
+
+#maximum of de05c74f1a4741be8ed2874fe50131873 (equivalent to BATS ASV77)
+de05c74f1a4741be8ed2874fe5013187_only <- plastid_only[plastid_only$ASV_ID=="de05c74f1a4741be8ed2874fe5013187",]
+
+max(de05c74f1a4741be8ed2874fe5013187_only$rel_abund_plastid)
+
+#maximum of c7e2bb914d7399515f7b7b839f642705 (equivalent to BATS ASV61)
+c7e2bb914d7399515f7b7b839f642705_only <- plastid_only[plastid_only$ASV_ID=="c7e2bb914d7399515f7b7b839f642705",]
+
+max(c7e2bb914d7399515f7b7b839f642705_only$rel_abund_plastid)
+
+#maximum of c7e2bb914d7399515f7b7b839f642705 (equivalent to BATS ASV177)
+e1901bf38c29c7ecd3552fa3b19b6e5b_only <- plastid_only[plastid_only$ASV_ID=="e1901bf38c29c7ecd3552fa3b19b6e5b",]
+
+max(e1901bf38c29c7ecd3552fa3b19b6e5b_only$rel_abund_plastid)
+
+#maximum of 307bd70ed5fcf6e43fcca50b1978f8ef (equivalent to BATS ASV1156)
+ASV_307bd70ed5fcf6e43fcca50b1978f8ef_only <- plastid_only[plastid_only$ASV_ID=="307bd70ed5fcf6e43fcca50b1978f8ef",]
+
+max(ASV_307bd70ed5fcf6e43fcca50b1978f8ef_only$rel_abund_plastid)
+
+#maximum of 8a6c94726c0780da709f413ba6a92c91 (equivalent to BATS ASV1296)
+ASV_8a6c94726c0780da709f413ba6a92c91_only <- plastid_only[plastid_only$ASV_ID=="8a6c94726c0780da709f413ba6a92c91",]
+
+max(ASV_8a6c94726c0780da709f413ba6a92c91_only$rel_abund_plastid)
+
+#maximum of e45acf3c0182ca417cbd9087ed3aafc1 (equivalent to BATS ASV345)
+ASV_e45acf3c0182ca417cbd9087ed3aafc1_only <- plastid_only[plastid_only$ASV_ID=="e45acf3c0182ca417cbd9087ed3aafc1",]
+
+max(ASV_e45acf3c0182ca417cbd9087ed3aafc1_only$rel_abund_plastid)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
